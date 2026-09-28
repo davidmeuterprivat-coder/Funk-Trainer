@@ -159,6 +159,9 @@ select,input[type=text]{font:inherit;color:var(--ink);background:var(--panel2);b
 .steps li.now{box-shadow:inset 0 0 0 2px var(--amber)}
 .card{background:var(--panel2);border-radius:10px;padding:10px 14px;margin-top:12px;border-left:4px solid var(--amber)}
 .card p{margin:4px 0 0}
+.task{margin-top:12px;padding:12px 16px;border-radius:10px;background:var(--panel2);border:2px solid var(--signal)}
+.task b{font-family:var(--cond);font-size:1.15rem;display:block;margin-bottom:4px}
+.task p{margin:3px 0}
 .typebox{display:flex;gap:8px;margin-top:14px}.typebox input{flex:1}
 .log{list-style:none;margin:10px 0 0;padding:0;max-height:430px;overflow:auto;border-top:1px solid var(--line)}
 .log li{padding:7px 2px;border-bottom:1px solid var(--line)}
@@ -244,10 +247,13 @@ kbd{font-family:var(--cond);background:var(--panel2);border:1px solid var(--line
     <h2>Einsatzübung</h2>
     <div class="row">
       <select id="scenSel" aria-label="Einsatz"></select>
+      <select id="diffSel" aria-label="Schwierigkeit"><option value="normal">Normal</option><option value="schwer">Schwer</option><option value="extrem">Einsatzstress</option></select>
       <button class="btn primary" id="btnAlarm">Alarm auslösen</button>
       <button class="btn" id="btnEnd" disabled>Übung beenden</button>
+      <button class="btn" id="btnDrill">Buchstabier-Übung</button>
     </div>
-    <p class="small">Ohne Einsatz kannst du die Leitstelle jederzeit anfunken, zum Beispiel für eine Sprechprobe.</p>
+    <p class="small">Bei „Schwer“ und „Einsatzstress“ stellt die Leitstelle Rückfragen, erwartet schnelle Antworten, sendet gestörte Sprüche und auf der Gruppe funken andere Fahrzeuge dazwischen. Ohne Einsatz kannst du die Leitstelle jederzeit frei anfunken.</p>
+    <div id="taskBox" aria-live="polite"></div>
     <div id="stepsBox"></div>
     <div id="lageBox"></div>
     <div class="typebox">
@@ -267,6 +273,9 @@ kbd{font-family:var(--cond);background:var(--panel2);border:1px solid var(--line
     <div class="ex"><b>Lagemeldung:</b> An Einsatzstelle eingetroffen. Kellerbrand im Mehrfamilienhaus, keine Personen in Gefahr, ein Trupp unter Atemschutz zur Brandbekämpfung eingesetzt, kommen.</div>
     <div class="ex"><b>Nachforderung:</b> Fordere Polizei zur Straßensperrung nach, kommen.</div>
     <div class="ex"><b>Abschluss:</b> Verstanden, Ende.</div>
+    <h3>Buchstabieren</h3>
+    <p>Einleiten mit „Ich buchstabiere“, jeden Buchstaben mit dem Wort aus der Tafel, Zahlen einzeln („vier, acht, zwo“). Die Leitstelle akzeptiert die klassische Tafel und die neue Städtetafel nach DIN 5009.</p>
+    <div class="tw"><table id="tblTafel"></table></div>
     <h3>Status Fahrzeug an Leitstelle</h3><div class="tw"><table id="tblS"></table></div>
     <h3>Status Leitstelle an Fahrzeug</h3><div class="tw"><table id="tblL"></table></div>
     <p class="small">Status 9 und die Leitstellen-Buchstaben sind regional unterschiedlich belegt. Maßgeblich sind die Vorgaben deiner Leitstelle.</p>
@@ -343,9 +352,9 @@ const SCEN={
 const S={on:false,booting:false,vol:5,mode:'TMO',gIdx:0,locked:false,light:true,mute:false,
   screen:'home',menu:null,sel:0,stack:[],pend:null,lastStatus:2,tx:false,rx:false,speaker:'',
   emergency:false,einzel:null,overlay:null,sds:[],sdsView:0,scenario:null,interim:'',
-  org:'FW',call:DEF_CALL.FW,ls:'Leitstelle Musterstadt',voice:'',rate:1.0,click:true};
+  org:'FW',call:DEF_CALL.FW,ls:'Leitstelle Musterstadt',voice:'',rate:1.0,click:true,diff:'schwer'};
 try{Object.assign(S,JSON.parse(localStorage.getItem('dft2')||'{}'));}catch(e){}
-function save(){try{localStorage.setItem('dft2',JSON.stringify({org:S.org,call:S.call,ls:S.ls,voice:S.voice,rate:S.rate,click:S.click,vol:S.vol}));}catch(e){}}
+function save(){try{localStorage.setItem('dft2',JSON.stringify({org:S.org,call:S.call,ls:S.ls,voice:S.voice,rate:S.rate,click:S.click,vol:S.vol,diff:S.diff}));}catch(e){}}
 const list=()=>S.mode==='TMO'?TMO:DMO;
 const group=()=>list()[S.gIdx][1];
 const folder=()=>list()[S.gIdx][0];
@@ -392,14 +401,14 @@ function speakable(s){
   return s.replace(/(\d)\s*\/\s*(\d)/g,'$1 $2').replace(/-/g,' ')
     .replace(/([A-Za-zÄÖÜ]{2,})(\d)/g,'$1 $2').replace(/(\d)([A-Za-zÄÖÜ])/g,'$1 $2')
     .replace(/\b([A-ZÄÖÜ]{2,4})\b/g,(m)=>['UEG','NEF','DLK','HLF','RTW','LF','ELW','KTW','MTW','GW','TLF','NA','OG','EG','VU','THW','ABC','SDS','DMO','TMO'].includes(m)?m.split('').join(' '):m)
-    .replace(/\b2\b/g,'zwo');
+    .replace(/\b2\b/g,'zwo').replace(/…/g,', ,');
 }
-function speak(text,done){
-  let fin=false;const end=()=>{if(!fin){fin=true;done&&done();}};
+function speak(text,done,o){
+  o=o||{};let fin=false;const end=()=>{if(!fin){fin=true;done&&done();}};
   if(!('speechSynthesis'in window)||S.mute||S.vol===0){setTimeout(end,900+text.length*55);return;}
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(speakable(text));u.lang='de-DE';
-  const v=pickVoice();if(v)u.voice=v;u.rate=S.rate;u.pitch=1;u.volume=Math.min(1,S.vol/8);
+  const v=o.voice||pickVoice();if(v)u.voice=v;u.rate=S.rate*(o.rate||1);u.pitch=o.pitch||1;u.volume=Math.min(1,S.vol/8);
   u.onend=end;u.onerror=end;speechSynthesis.speak(u);
   setTimeout(end,5000+text.length*130);
 }
@@ -425,7 +434,7 @@ function ensureRec(){
       };
       rec.onerror=e=>{
         if(['not-allowed','service-not-allowed','audio-capture'].includes(e.error)){micBlocked=true;wantRec=false;line('Mikrofon nicht freigegeben. Klick auf das Schloss-Symbol in der Adresszeile und erlaube das Mikrofon, dann Seite neu laden.');}
-        if(e.error==='network')line('Spracherkennung braucht eine Internetverbindung.');
+        if(e.error==='network')line('Der Spracherkennungs-Dienst des Browsers ist nicht erreichbar. Edge oder Chrome nutzen, in Windows die Online-Spracherkennung einschalten, VPN oder Werbeblocker prüfen.');
       };
       rec.onstart=()=>{recRunning=true;};
       rec.onend=()=>{recRunning=false;lastFinal=-1;cur={};capBase=0;pre='';if(capOpen&&wantRec&&!micBlocked)ensureRec();};
@@ -501,7 +510,7 @@ function respond(raw,notruf){
   if(S.mode==='TMO'&&!S.einzel&&S.scenario&&S.gIdx!==S.scenario.grp&&/leitstelle/.test(t)){
     return out(`${me} von ${p}, Sie sind auf der falschen Gruppe. Wechseln Sie auf ${TMO[S.scenario.grp][1]}, Ende.`,{ok:false,hinweis:'Einsatzgruppe aus der Alarmierung beachten.'});}
   if(/ wiederholen /.test(t)&&D.lastLs)return out(D.lastLs,{ok:true,hinweis:'Nachfrage korrekt.'});
-  if(D.await&&(/^ hier /.test(t)||t.includes(meKey()))){const r=D.await;D.await=null;D.connected=true;return out(r,evaluate(t));}
+  
   const m=t.match(/^ (.*?) von (.*)$/);
   const rest=m?m[2].replace(/ kommen $/,' ').trim():'';
   const hasContent=CONTENT.test(t);
@@ -532,24 +541,330 @@ function lsCall(followup){
 }
 
 /* ================= Empfang/Senden ================= */
-function playRx(text,who){
-  S.rx=true;S.speaker=who;render();T.rx();noise(true);D.lastLs=text;
-  addLog('rx',text,who);
-  setTimeout(()=>speak(text,()=>{S.rx=false;noise(false);render();}),150);
+const rxQ=[];let rxBusy=false;
+function playRx(text,who,o){rxQ.push({text,who,o:o||{}});if(!rxBusy)rxNext();}
+function rxNext(){
+  if(!S.on){rxQ.length=0;rxBusy=false;S.rx=false;noise(false);render();return;}
+  const it=rxQ.shift();
+  if(!it){rxBusy=false;S.rx=false;noise(false);render();armTimer();return;}
+  rxBusy=true;clearTimeout(ansTimer);S.rx=true;S.speaker=it.who;render();T.rx();noise(true);
+  if(!it.o.other)D.lastLs=it.text;
+  addLog('rx',(D.q&&D.q.lsSpell&&/ich buchstabiere/i.test(it.text))?'(Buchstabierte Durchsage: hör zu und schreib mit)':it.text,it.who);
+  setTimeout(()=>speak(it.text,()=>{setTimeout(rxNext,450);},it.o),150);
 }
 function handle(text,notruf){
-  const r=respond(text,notruf);
+  clearTimeout(ansTimer);D.miss=0;
+  let r=notruf?null:stressAnswer(norm(text));
+  if(!r)r=respond(text,notruf);
   const last=[...LOG].reverse().find(x=>x.dir==='tx');
   if(r.fb&&last&&!notruf){last.fb=r.fb;renderLog();}
-  if(r.lage)markStep('lage');
-  if(r.reply)setTimeout(()=>{if(S.on)playRx(r.reply,r.speaker);},700+Math.random()*700);
+  if(r.fb&&!r.fb.ok)ST.form++;
+  if(r.lage&&S.scenario){markStep('lage');const q=lageQuestions(norm(text));if(q)r.reply=q;scheduleEvents();}
+  if(r.reply)setTimeout(()=>{if(S.on)playRx(r.reply,r.speaker||S.ls);},700+Math.random()*700);
+  updateTask();
+}
+
+/* ================= Stress-Leitstelle ================= */
+const DIFF={normal:{ans:30,garble:0,chatter:0,extra:0,gap:70,checks:1,keyNeed:false},
+  schwer:{ans:18,garble:.45,chatter:1,extra:1,gap:45,checks:3,keyNeed:true},
+  extrem:{ans:11,garble:.75,chatter:2,extra:2,gap:26,checks:3,keyNeed:true}};
+const dif=()=>DIFF[S.diff]||DIFF.schwer;
+const ST={q:0,ok:0,to:0,wdh:0,missWdh:0,busy:0,form:0,spOk:0,spErr:0};
+function resetStats(){Object.keys(ST).forEach(k=>ST[k]=0);}
+let ansTimer=null,chatTimer=null,evTimer=null,anfTimer=null,evQueue=[];
+D.q=null;D.queue=[];D.miss=0;
+const CHECKS={
+ FW:[{k:'personen',rx:/person|bewohner|verletz|vermisst|niemand|menschen/,ask:'Sind Personen gefährdet oder verletzt, kommen?',expect:/person|niemand|keine|ja|nein|verletz|vermisst|gerettet|draußen/},
+     {k:'massnahmen',rx:/trupp|atemschutz|vorgehen|eingesetzt|eingeleitet|angriff|rohr|riegel|rettung|absperr|sperr|belüft|drehleiter/,ask:'Welche Maßnahmen haben Sie eingeleitet, kommen?',expect:/trupp|atemschutz|vorgehen|eingesetzt|eingeleitet|angriff|rohr|riegel|rettung|absperr|sperr|belüft|drehleiter|brandbekämpfung|sicher|erkund|messung|zündquelle/},
+     {k:'kraefte',rx:/reich|genügend|nachforder|fordere|benötige|brauche|weitere kräfte|keine weiteren|nicht erforderlich/,ask:'Reichen Ihre Kräfte aus oder fordern Sie nach, kommen?',expect:/reich|genügend|nachforder|fordere|benötige|brauche|weitere|keine|ja|nein|nicht erforderlich/}],
+ RD:[{k:'alter',rx:/patient|männlich|weiblich|jahre|jährig|frau|mann|kind/,ask:'Alter und Geschlecht des Patienten, kommen?',expect:/jahr|männlich|weiblich|mann|frau|kind|\d/},
+     {k:'zustand',rx:/ansprechbar|bewusst|stabil|kreislauf|atem|sättigung|blutdruck|verletz|schmerz/,ask:'Wie ist der Zustand des Patienten, kommen?',expect:/ansprechbar|bewusst|stabil|kreislauf|atem|sättigung|blutdruck|kritisch|verletz|schmerz|gut|schlecht/},
+     {k:'transport',rx:/transport|klinik|krankenhaus|notarzt|nef|ambulant|kein transport/,ask:'Transportieren Sie, wohin, und brauchen Sie einen Notarzt, kommen?',expect:/transport|klinik|krankenhaus|notarzt|nef|ambulant|nein|ja|kein/}],
+ THW:[{k:'gefahr',rx:/person|gefahr|verletz|niemand/,ask:'Sind Personen gefährdet, kommen?',expect:/person|niemand|keine|ja|nein|gefahr|verletz/},
+      {k:'massnahmen',rx:/säge|pumpe|räum|eingesetzt|beseitig|abstütz|sperr|maßnahme|zerleg/,ask:'Welche Maßnahmen laufen, kommen?',expect:/säge|pumpe|räum|eingesetzt|beseitig|abstütz|sperr|arbeit|maßnahme|zerleg/},
+      {k:'dauer',rx:/stunde|minute|dauer|voraussichtlich/,ask:'Wie lange dauert der Einsatz voraussichtlich, kommen?',expect:/stunde|minute|dauer|voraussichtlich|unbekannt|absehbar|\d/}]
+};
+const POOL=[
+ {k:'zwischen',ask:'Geben Sie eine kurze Zwischenmeldung, kommen.',expect:/\w/,minWords:6},
+ {k:'dauer',ask:'Wie lange dauert der Einsatz voraussichtlich noch, kommen?',expect:/stunde|minute|dauer|voraussichtlich|unbekannt|absehbar|\d/},
+ {k:'sicher',ask:'Ist die Einsatzstelle abgesichert, kommen?',expect:/ja|nein|abgesichert|gesichert|sperr|polizei|verkehr/},
+ {k:'fuehrung',ask:'Wer führt vor Ort, kommen?',expect:/einsatzleit|gruppenführer|zugführer|führer|ich|wir|übernommen|leitung|führung|florian|rettung|heros/},
+ {k:'adresse',ask:'Bestätigen Sie mir die genaue Einsatzadresse, kommen.',expect:()=>new RegExp(S.scenario?S.scenario.adr.toLowerCase().split(/[ ,]/)[0].slice(0,5):'.')},
+ {k:'parallel',ask:'Können Sie ein Fahrzeug für einen Paralleleinsatz freigeben, kommen?',expect:/ja|nein|frei|nicht|keine|kann|können/},
+ {k:'abloesung',ask:'Benötigen Sie Ablösung oder Verpflegung, kommen?',expect:/ja|nein|keine|nicht|ablösung|verpflegung/}
+];
+const EXTRA={
+ 'B 2 Kellerbrand':{anf:'Zusatzinformation: Zufahrt über die Einfahrt neben Hausnummer 16, nächster Hydrant vor Hausnummer 12. Bestätigen, kommen.',key:/16|sechzehn|12|zwölf|hydrant|einfahrt/,
+   facts:['An der Einsatzstelle eingetroffen','Kellerbrand im Mehrfamilienhaus, drei Geschosse, Rauch aus zwei Kellerfenstern','Alle Bewohner draußen, keine Verletzten, Treppenraum rauchfrei','Ein Trupp unter Atemschutz zur Brandbekämpfung im Keller eingesetzt','Kräfte reichen aus'],
+   ans:{personen:'Keine Verletzten, alle Bewohner draußen.',massnahmen:'Ein Trupp unter Atemschutz zur Brandbekämpfung im Keller.',kraefte:'Kräfte reichen aus.',dauer:'Etwa 60 Minuten.',sicher:'Ja, Einsatzstelle ist abgesichert.',zwischen:'Brand im Keller unter Kontrolle, Belüftung läuft, keine Ausbreitung.'},
+   spell:{word:'WEBER',ask:'Buchstabieren Sie den Namen der Bewohnerin aus dem Erdgeschoss, kommen.',info:'Name laut Klingelschild: WEBER'},
+   ev:[{ask:'Nachmeldung: Ein Anrufer meldet, dass die Bewohnerin aus dem Erdgeschoss links noch nicht angetroffen wurde. Veranlassen Sie eine Kontrolle und bestätigen Sie, kommen.',expect:/verstanden|kontroll|such|trupp|erkund|wird|veranlasst/,info:'Bestätige und melde, dass du einen Trupp zur Kontrolle der Wohnung Erdgeschoss links schickst.',
+       follow:{ask:'Ergebnis der Kontrolle Erdgeschoss links, kommen?',expect:/gefunden|angetroffen|niemand|keine|negativ|positiv|gerettet|übergeben|leer|nicht|unverletzt/,info:'Frau Weber wurde bei den Nachbarn angetroffen, sie ist unverletzt.'}}]},
+ 'TH 2 VU, Person eingeklemmt':{anf:'Zusatzinformation: Das Fahrzeug liegt im Graben auf der rechten Seite, Fahrtrichtung Beispielheim. Bestätigen, kommen.',key:/graben|rechts|beispielheim|fahrtrichtung/,
+   facts:['An der Einsatzstelle eingetroffen','PKW frontal gegen Baum, im Graben','Fahrer eingeklemmt, ansprechbar','Betriebsstoffe laufen aus, kein Brand','Brandschutz sichergestellt, technische Rettung eingeleitet','Nachforderung: RTW, Notarzt, Polizei zur Straßensperrung'],
+   ans:{personen:'Eine Person eingeklemmt, ansprechbar.',massnahmen:'Brandschutz sichergestellt, technische Rettung eingeleitet.',kraefte:'Nachforderung RTW, Notarzt und Polizei.',dauer:'Etwa 45 Minuten.',sicher:'Ja, mit Fahrzeugen abgesichert.',zwischen:'Befreiung läuft, Patient weiter ansprechbar, Betriebsstoffe abgestreut.'},
+   spell:{word:'MSKL482',show:'MS-KL 482',ask:'Buchstabieren Sie das Kennzeichen des Unfallfahrzeugs, kommen.',info:'Kennzeichen: MS-KL 482 (Zahlen einzeln sprechen: vier, acht, zwo)'},
+   ev:[{ask:'Die Polizei fragt an, ob eine Vollsperrung nötig ist oder eine Fahrspur frei bleiben kann, kommen?',expect:/voll|sperr|spur|frei|einseitig|ja|nein/,info:'Vollsperrung erforderlich, bis die Befreiung abgeschlossen ist.'},
+       {ask:'Der Notarzt fragt nach der voraussichtlichen Dauer bis zur Befreiung, kommen?',expect:/minute|stunde|dauer|voraussichtlich|\d|unbekannt/,info:'Etwa 20 Minuten bis zur Befreiung.'}]},
+ 'B 3 MiG Wohnungsbrand':{anf:'Zusatzinformation: Die Drehleiter kann nur von der Marktplatzseite anleitern, die Rückseite ist nicht anfahrbar. Bestätigen, kommen.',key:/marktplatz|rückseite|anleiter|drehleiter/,
+   facts:['An der Einsatzstelle eingetroffen','Wohnung im 2. OG im Vollbrand','Eine Person am Fenster zur Straßenseite, Treppenraum verraucht','Menschenrettung über Drehleiter eingeleitet, ein Trupp unter Atemschutz zur Brandbekämpfung','Nachforderung: weiterer Löschzug'],
+   ans:{personen:'Eine Person am Fenster im 2. OG, Rettung läuft.',massnahmen:'Menschenrettung über Drehleiter, ein Trupp unter Atemschutz zur Brandbekämpfung.',kraefte:'Nachforderung eines weiteren Löschzugs.',dauer:'Mindestens 90 Minuten.',sicher:'Ja.',zwischen:'Person über Drehleiter gerettet und an den Rettungsdienst übergeben, Brandbekämpfung läuft.'},
+   lsSpell:{word:'KOWALSKI',intro:'Der Anrufer, der das Kind gemeldet hat, heißt',info:'Schreib mit, was die Leitstelle buchstabiert, und nenne den Namen zurück.'},
+   ev:[{ask:'Nachmeldung: Nachbarn melden ein Kind in der Wohnung im dritten Obergeschoss. Bestätigen Sie und melden Sie Ihre Maßnahme, kommen.',expect:/verstanden|trupp|rettung|kontroll|drehleiter|such|wird|eingesetzt/,info:'Bestätige und schick einen zweiten Trupp unter Atemschutz ins 3. OG.',
+       follow:{ask:'Wie ist der Stand der Menschenrettung, kommen?',expect:/gerettet|übergeben|rettungsdienst|läuft|noch|abgeschlossen|person|kind/,info:'Kind im 3. OG gefunden, mit Fluchthaube über den Treppenraum gerettet und an den Rettungsdienst übergeben.'}},
+       {ask:'Brauchen Sie einen zweiten Rettungswagen, kommen?',expect:/ja|nein|rtw|rettungswagen|nicht|kein/,info:'Ja, zweiten RTW nachfordern.'}]},
+ 'ABC 1 Gasgeruch':{anf:'Zusatzinformation: Der Haupteingang ist verschlossen, Schlüsseldepot am Tor zwo. Bestätigen, kommen.',key:/tor|schlüssel|depot|zwei|zwo|2/,
+   facts:['An der Einsatzstelle eingetroffen','Deutlicher Gasgeruch an der Lagerhalle','Messung: 20 Prozent UEG im Eingangsbereich','Mitarbeiter geräumt, keine Verletzten','Bereich abgesperrt, Zündquellen werden vermieden','Nachforderung: Netzbetreiber'],
+   ans:{personen:'Keine Verletzten, Halle geräumt.',massnahmen:'Absperrung, Zündquellen vermeiden, Messung läuft.',kraefte:'Netzbetreiber nachgefordert, eigene Kräfte reichen.',dauer:'Etwa 90 Minuten.',sicher:'Ja, Bereich abgesperrt.',zwischen:'Messwert auf 10 Prozent UEG gesunken, Halle wird belüftet.'},
+   spell:{word:'PROPAN',ask:'Buchstabieren Sie die Aufschrift auf dem Gasbehälter, kommen.',info:'Aufschrift auf dem Behälter: PROPAN'},
+   ev:[{ask:'Der Netzbetreiber ist in etwa 20 Minuten vor Ort. Wie ist der aktuelle Messwert, kommen?',expect:/prozent|ueg|messwert|\d|gesunken|gestiegen|unverändert/,info:'Aktuell 15 Prozent UEG, leicht gesunken.'},
+       {ask:'Müssen die Nachbargebäude geräumt werden, kommen?',expect:/ja|nein|räum|nicht|evaku/,info:'Nein, Messung an den Nachbargebäuden negativ.'}]},
+ 'RD 2 Atemnot':{anf:'Zusatzinformation: Der Patient wohnt im vierten Obergeschoss, kein Aufzug. Bestätigen, kommen.',key:/vier|4|aufzug|obergeschoss/,
+   facts:['Beim Patienten eingetroffen','Patient männlich, 67 Jahre','Deutliche Atemnot, Sättigung 86 Prozent, bekannte COPD, ansprechbar','Nachforderung: Notarzt','Transport ins Klinikum Musterstadt geplant'],
+   ans:{alter:'Männlich, 67 Jahre.',zustand:'Ansprechbar, deutliche Atemnot, Sättigung 86 Prozent.',transport:'Transport ins Klinikum Musterstadt, Notarzt wird benötigt.',dauer:'Etwa 20 Minuten vor Ort.',sicher:'Ja.',zwischen:'Patient unter Sauerstoff, Sättigung 91 Prozent, Notarzt vor Ort.'},
+   spell:{word:'HOFFMANN',ask:'Buchstabieren Sie den Nachnamen des Patienten, kommen.',info:'Patient: Herr HOFFMANN'},
+   ev:[{ask:'Das Klinikum Musterstadt hat sich abgemeldet, Ausweichziel ist das Sankt Josef Hospital. Bestätigen, kommen.',expect:/josef|hospital|ausweich/,info:'Bestätige das neue Ziel mit Namen: Sankt Josef Hospital.'},
+       {ask:'Wie ist die Sättigung aktuell, kommen?',expect:/prozent|\d|sättigung|gestiegen|gebessert|unverändert/,info:'Sättigung jetzt 92 Prozent unter Sauerstoff.'}]},
+ 'RD 1 Sturz':{anf:'Zusatzinformation: Die Pflegekraft erwartet Sie am Haupteingang, Wohnbereich zwo. Bestätigen, kommen.',key:/haupteingang|wohnbereich|pflege|zwei|zwo|2/,
+   facts:['Bei der Patientin eingetroffen','Patientin weiblich, 84 Jahre','Sturz, Verdacht auf Oberschenkelhalsfraktur rechts','Ansprechbar, Kreislauf stabil','Transport in die Unfallchirurgie Klinikum Musterstadt, kein Notarzt nötig'],
+   ans:{alter:'Weiblich, 84 Jahre.',zustand:'Ansprechbar, Kreislauf stabil, Schmerzen an der rechten Hüfte.',transport:'Transport Klinikum Musterstadt Unfallchirurgie, kein Notarzt.',dauer:'Etwa 25 Minuten vor Ort.',sicher:'Ja.',zwischen:'Patientin schonend gelagert, Transport beginnt.'},
+   spell:{word:'JANSEN',ask:'Buchstabieren Sie den Nachnamen der Patientin, kommen.',info:'Patientin: Frau JANSEN'},
+   ev:[{ask:'Benötigen Sie Tragehilfe, kommen?',expect:/ja|nein|trage|nicht|keine/,info:'Nein, keine Tragehilfe nötig, Aufzug vorhanden.'},
+       {ask:'Nennen Sie mir das Transportziel, kommen.',expect:/klinik|krankenhaus|hospital|unfallchirurg|notaufnahme/,info:'Klinikum Musterstadt, Unfallchirurgie.'}]},
+ 'RD 3 VU mehrere Verletzte':{anf:'Zusatzinformation: Die Feuerwehr meldet vier Betroffene, der Notarzt ist noch zehn Minuten entfernt. Bestätigen, kommen.',key:/vier|4|notarzt|zehn|10/,
+   facts:['An der Einsatzstelle eingetroffen','Zwei PKW, vier Betroffene','Ein Patient schwer verletzt, drei leicht verletzt','Feuerwehr vor Ort','Nachforderung: Notarzt und ein weiterer RTW'],
+   ans:{alter:'Schwerverletzter männlich, etwa 30 Jahre.',zustand:'Ein Schwerverletzter mit instabilem Kreislauf, drei Leichtverletzte.',transport:'Schwerverletzter in den Schockraum Klinikum Musterstadt, Notarzt benötigt.',dauer:'Etwa 40 Minuten.',sicher:'Ja, die Feuerwehr sichert ab.',zwischen:'Notarzt vor Ort, Schwerverletzter versorgt, Transport wird vorbereitet.'},
+   spell:{word:'MSRT17',show:'MS-RT 17',ask:'Buchstabieren Sie das Kennzeichen des zweiten Unfallfahrzeugs, kommen.',info:'Kennzeichen: MS-RT 17 (Zahlen einzeln: eins, sieben)'},
+   ev:[{ask:'Wie viele Patienten sind rot, gelb und grün gesichtet, kommen?',expect:/rot|gelb|grün|\d|sichtung/,info:'Einmal rot, einmal gelb, zweimal grün.'},
+       {ask:'Welche Kliniken sollen angefahren werden, kommen?',expect:/klinik|krankenhaus|hospital|zentrum/,info:'Rot ins Klinikum Musterstadt, gelb und grün ins Sankt Josef Hospital.'}]},
+ 'TH Baum auf Fahrbahn':{anf:'Zusatzinformation: Die Polizei sperrt bereits aus Richtung Norden. Bestätigen, kommen.',key:/polizei|norden|sperr/,
+   facts:['An der Einsatzstelle eingetroffen','Großer Baum quer über beide Fahrstreifen','Keine Personen betroffen','Motorsägentrupp beginnt mit der Beseitigung','Dauer etwa zwei Stunden, Polizei zur Sperrung benötigt'],
+   ans:{gefahr:'Keine Personen gefährdet.',massnahmen:'Motorsägentrupp zerlegt den Baum.',dauer:'Etwa zwei Stunden.',sicher:'Ja, Polizei sperrt.',zwischen:'Halber Stamm beseitigt, eine Fahrspur in etwa 30 Minuten frei.',kraefte:'Kräfte reichen aus.'},
+   lsSpell:{word:'FISCHER',intro:'Ansprechpartner vom Bauhof vor Ort ist Herr',info:'Schreib mit, was die Leitstelle buchstabiert, und nenne den Namen zurück.'},
+   ev:[{ask:'Ein Linienbus fragt, wann die Straße wieder frei ist, kommen?',expect:/minute|stunde|\d|voraussichtlich|unbekannt|dauer/,info:'Eine Fahrspur in etwa 45 Minuten frei.'},
+       {ask:'Brauchen Sie einen Radlader, kommen?',expect:/ja|nein|radlader|nicht|kein/,info:'Ja, Radlader zum Abtransport anfordern.'}]},
+ 'Unwetter Wasser im Keller':{anf:'Zusatzinformation: Im Erdgeschoss lebt eine gehbehinderte Person. Bestätigen, kommen.',key:/gehbehindert|person|erdgeschoss/,
+   facts:['An der Einsatzstelle eingetroffen','Keller etwa 60 Zentimeter unter Wasser','Strom im Keller abgeschaltet, keine Personen gefährdet','Zwei Tauchpumpen im Einsatz','Dauer etwa 90 Minuten'],
+   ans:{gefahr:'Keine Personen gefährdet, Strom abgeschaltet.',massnahmen:'Zwei Tauchpumpen im Einsatz.',dauer:'Etwa 90 Minuten.',sicher:'Ja.',zwischen:'Wasserstand auf 30 Zentimeter gesunken.',kraefte:'Kräfte reichen aus.'},
+   spell:{word:'BECKER',ask:'Buchstabieren Sie den Namen des Hauseigentümers, kommen.',info:'Hauseigentümer: Herr BECKER'},
+   ev:[{ask:'Drei weitere Keller in der Uferstraße sind gemeldet. Können Sie danach übernehmen, kommen?',expect:/ja|nein|übernehm|können|nicht|kann/,info:'Ja, ihr übernehmt die weiteren Keller danach.'},
+       {ask:'Wie ist der Wasserstand jetzt, kommen?',expect:/zentimeter|\d|gesunken|gestiegen|abgepumpt|unverändert/,info:'Wasserstand jetzt 20 Zentimeter.'}]}
+};
+/* ---------- Buchstabieren ---------- */
+const SPELL={anton:'A',aachen:'A',alpha:'A',alfa:'A',berta:'B',bertha:'B',berlin:'B',bravo:'B','cäsar':'C',caesar:'C',chemnitz:'C',charlie:'C',charlotte:'CH',dora:'D','düsseldorf':'D',delta:'D',emil:'E',essen:'E',echo:'E',friedrich:'F',frankfurt:'F',foxtrot:'F',gustav:'G',goslar:'G',golf:'G',heinrich:'H',hamburg:'H',hotel:'H',ida:'I',ingelheim:'I',india:'I',julius:'J',jena:'J',juliett:'J',juliet:'J',kaufmann:'K','köln':'K',kilo:'K',konrad:'K',ludwig:'L',leipzig:'L',lima:'L',martha:'M',marta:'M','münchen':'M',mike:'M',nordpol:'N','nürnberg':'N',november:'N',otto:'O',offenbach:'O',oscar:'O',oskar:'O',paula:'P',potsdam:'P',papa:'P',peter:'P',quelle:'Q',quickborn:'Q',quebec:'Q',richard:'R',rostock:'R',romeo:'R',samuel:'S',siegfried:'S',salzwedel:'S',sierra:'S',schule:'SCH',theodor:'T','tübingen':'T',tango:'T',ulrich:'U',unna:'U',uniform:'U',viktor:'V',victor:'V','völklingen':'V',wilhelm:'W',wuppertal:'W',whiskey:'W',whisky:'W',xanthippe:'X',xanten:'X',xray:'X',ypsilon:'Y',yankee:'Y',zacharias:'Z',zeppelin:'Z',zwickau:'Z',zulu:'Z','ärger':'Ä','ökonom':'Ö','übermut':'Ü','übel':'Ü',eszett:'ß'};
+const NUMW={null:'0',eins:'1',zwo:'2',zwei:'2',drei:'3',vier:'4','fünf':'5',sechs:'6',sieben:'7',acht:'8',neun:'9'};
+const TAFEL={A:'Anton',B:'Berta',C:'Cäsar',D:'Dora',E:'Emil',F:'Friedrich',G:'Gustav',H:'Heinrich',I:'Ida',J:'Julius',K:'Kaufmann',L:'Ludwig',M:'Martha',N:'Nordpol',O:'Otto',P:'Paula',Q:'Quelle',R:'Richard',S:'Samuel',T:'Theodor',U:'Ulrich',V:'Viktor',W:'Wilhelm',X:'Xanthippe',Y:'Ypsilon',Z:'Zacharias','Ä':'Ärger','Ö':'Ökonom','Ü':'Übermut','ß':'Eszett'};
+const DIGW=['null','eins','zwo','drei','vier','fünf','sechs','sieben','acht','neun'];
+function spelled(t){
+  const toks=t.replace(/x-ray/g,'xray').replace(/[-\/]/g,' ').split(' ').filter(Boolean);
+  let out='',n=0,raw=0;
+  for(let i=0;i<toks.length;i++){const w=toks[i];
+    if(w==='umlaut'&&toks[i+1]&&SPELL[toks[i+1]]){const x=SPELL[toks[i+1]];out+={A:'Ä',O:'Ö',U:'Ü'}[x]||x;n++;i++;continue;}
+    if(SPELL[w]){out+=SPELL[w];n++;}
+    else if(NUMW[w])out+=NUMW[w];
+    else if(/^\d+$/.test(w))out+=w;
+    else if(/^[a-zäöü]$/.test(w)){out+=w.toUpperCase();raw++;}
+  }
+  return{out,n,raw};
+}
+function spellOut(w){const o=[];for(let i=0;i<w.length;i++){
+  if(w.substr(i,3)==='SCH'){o.push('Schule');i+=2;continue;}
+  if(w.substr(i,2)==='CH'){o.push('Charlotte');i++;continue;}
+  const c=w[i];o.push(/\d/.test(c)?DIGW[+c]:(TAFEL[c]||c));}return o.join(', ');}
+const cleanW=w=>w.toUpperCase().replace(/[^A-ZÄÖÜß0-9]/g,'');
+function checkSpell(q,t){
+  const tgt=cleanW(q.word),sp=spelled(t);let ok,fb;
+  if(q.spell){
+    if(sp.n===0&&sp.raw>0){ok=false;fb={ok:false,hinweis:'Buchstabiere mit der Buchstabiertafel (Anton, Berta … oder Aachen, Berlin …), nicht mit einzelnen Buchstaben.'};}
+    else{ok=sp.out===tgt;fb=ok?(/ich buchstabiere/.test(t)?{ok:true,hinweis:'Korrekt buchstabiert.'}:{ok:true,hinweis:'Korrekt. Leite beim nächsten Mal mit „Ich buchstabiere“ ein.'}):{ok:false,hinweis:`Erkannt wurde „${sp.out||'nichts'}“, richtig wäre „${q.show||q.word}“.`};}
+  }else{
+    ok=t.includes(' '+q.word.toLowerCase()+' ')||sp.out===tgt;
+    fb=ok?{ok:true,hinweis:'Richtig mitgeschrieben.'}:{ok:false,hinweis:`Richtig wäre „${q.word}“. Bei Unsicherheit sofort „wiederholen, kommen“.`};
+  }
+  if(ok){ST.ok++;ST.spOk++;D.q=null;afterQ(q);return{reply:`${S.ls}, verstanden, Ende.`,fb,speaker:S.ls};}
+  q.retries++;ST.spErr++;
+  if(q.retries>=2){D.q=null;afterQ(q);return{reply:`${S.ls}, richtig ist: ${spellOut(tgt)}. Ende.`,fb,speaker:S.ls};}
+  return{reply:q.spell?`${S.call} von ${S.ls}, das stimmt nicht mit unseren Daten überein. Buchstabieren Sie erneut, kommen.`:`${S.call} von ${S.ls}, falsch. Ich buchstabiere noch einmal: ${spellOut(tgt)}. Wiederholen Sie, kommen.`,fb,speaker:S.ls};
+}
+function spellQ(ex){
+  if(ex.spell)return Object.assign({spell:true,noGarble:true},ex.spell);
+  if(ex.lsSpell){const w=cleanW(ex.lsSpell.word);return{lsSpell:true,noGarble:true,word:ex.lsSpell.word,info:ex.lsSpell.info,ask:`${ex.lsSpell.intro} … Ich buchstabiere: ${spellOut(w)}. Wiederholen Sie den Namen, kommen.`};}
+  return null;
+}
+const DRILL=['MÜLLER','SCHMIDT','KOWALSKI','PFEIFFER','QUANDT','XAVER','JUNGHANS','LINDENALLEE','BIRKENWEG','HOFMEISTER','YILMAZ','WEISSENBERG','MS-AB 123','D-XY 42','KLEVE','ZIEGLER','VOGELSANG'];
+function startDrill(){
+  if(!S.on){line('Erst das Gerät einschalten: rote Taste lang drücken.');return;}
+  if(S.scenario){line('Beende zuerst die laufende Einsatzübung.');return;}
+  stopStress();resetStats();S.drill={i:0,n:8};addLog('sys','Buchstabier-Übung gestartet: 8 Durchgänge, abwechselnd du und die Leitstelle.');nextDrill();
+}
+function nextDrill(){
+  const d=S.drill;if(!d||!S.on)return;
+  if(d.i>=d.n){addLog('sys',`Buchstabier-Übung beendet: ${ST.spOk} von ${d.n} richtig.`);setTask('Buchstabier-Übung beendet',[`${ST.spOk} von ${d.n} richtig, ${ST.spErr} Fehlversuche.`]);S.drill=null;return;}
+  const mine=d.i%2===0;d.i++;
+  const pool=mine?DRILL:DRILL.filter(w=>!/\d/.test(w));
+  const w=pool[Math.floor(Math.random()*pool.length)];
+  const q=mine?{spell:true,noGarble:true,word:w,show:w,ask:'Buchstabieren Sie das Wort aus Ihrer Aufgabe, kommen.',info:'Buchstabiere: '+w}
+    :{lsSpell:true,noGarble:true,word:w,ask:`Ich buchstabiere: ${spellOut(cleanW(w))}. Wiederholen Sie das Wort, kommen.`,info:'Hör genau zu, schreib mit und nenne das Wort zurück.'};
+  const txt=deliverQ(q,`${S.call} von ${S.ls}, `);updateTask();playRx(txt,S.ls);
+}
+/* ---------- Aufgaben-Anzeige ---------- */
+function setTask(title,lines){$('#taskBox').innerHTML=`<div class="task"><b>${esc(title)}</b>${lines.filter(Boolean).map(l=>`<p>${esc(l)}</p>`).join('')}</div>`;}
+function infoFor(q){
+  if(!q)return'';if(q.info)return q.info;
+  const sc=S.scenario,ex=sc&&EXTRA[sc.st];if(!ex||!q.k)return'';
+  if(q.k==='fuehrung')return`Du führst selbst (${S.call}).`;
+  if(q.k==='adresse')return sc.adr;
+  if(q.k==='parallel')return'Nein, alle Kräfte sind gebunden.';
+  if(q.k==='abloesung')return'Nein, derzeit nicht erforderlich.';
+  return ex.ans[q.k]||'';
+}
+function updateTask(){
+  if(S.drill){if(D.q)setTask('Buchstabier-Übung',[infoFor(D.q),D.q.spell?'Einleiten mit „Ich buchstabiere“, jedes Zeichen nach Buchstabiertafel, Zahlen einzeln, Schluss mit „kommen“.':'Antworte mit dem Wort und „kommen“. Nicht verstanden? „wiederholen, kommen“.']);return;}
+  const sc=S.scenario;if(!sc){$('#taskBox').innerHTML='';return;}
+  const ex=EXTRA[sc.st]||{facts:[]};
+  if(D.await){setTask('Die Leitstelle ruft dich',[`Antworte: „Hier ${S.call}, kommen.“`,'Dann genau zuhören. War etwas gestört: „wiederholen, kommen“.']);return;}
+  if(D.q){
+    if(D.q.lageReq){setTask('Die Leitstelle wartet auf deine '+(S.org==='RD'?'Rückmeldung':'Lagemeldung'),['Übermittle in einem Spruch:',...ex.facts.map(f=>'– '+f),'Schluss mit „kommen“.']);return;}
+    const inf=infoFor(D.q);
+    setTask('Die Leitstelle erwartet eine Antwort',[D.q.garbled?'Die Durchsage war gestört.':'Frage: '+D.q.text,D.q.garbled?'':(inf?'Deine Information dafür: '+inf:''),D.q.spell?'Buchstabieren: mit „Ich buchstabiere“ einleiten, Buchstabiertafel nutzen.':'Knapp antworten, mit „kommen“ oder „Ende“ abschließen.']);return;}
+  const next=sc.steps.find(x=>!x.done);if(!next)return;
+  const call=`„${S.ls} von ${S.call}, kommen.“`;
+  switch(next.k){
+    case's3':setTask('Alarm eingegangen',[`Du bist ${S.call}.`,`Wechsle auf die Einsatzgruppe ${TMO[sc.grp][1]} (Pfeiltasten oder Gruppenknopf).`,'Sende Status 3: Taste 3, dann grüne Taste.']);break;
+    case's4':setTask('Anfahrt',['Halte die Gruppe frei und achte auf Durchsagen der Leitstelle.','Zusatzinformationen mit den wichtigsten Angaben bestätigen.','Bei Ankunft Status 4 senden.']);break;
+    case'lage':setTask((S.org==='RD'?'Rückmeldung':'Lagemeldung')+' absetzen',['Rufe die Leitstelle: '+call,'Wenn sie antwortet, übermittle in einem Spruch:',...ex.facts.map(f=>'– '+f),'Schluss mit „kommen“. Fehlt etwas, fragt die Leitstelle nach.']);break;
+    case's7':setTask('Patient aufnehmen',['Wenn alle Rückfragen erledigt sind: Status 7 senden (Patient aufgenommen).','Auf dem Transport erreichbar bleiben.']);break;
+    case's8':setTask('Transport',['Bei Ankunft im Krankenhaus Status 8 senden.']);break;
+    case's1':
+      if(evQueue.length)setTask('Arbeit an der Einsatzstelle',['Die Leitstelle kann jederzeit mit Nachmeldungen, Rückfragen oder Buchstabier-Abfragen kommen.','Noch keinen Status 1 senden, solange Meldungen offen sind.']);
+      else setTask('Einsatzende',['Melde der Leitstelle das Einsatzende: '+`„${S.ls} von ${S.call}, Einsatzstelle verlassen, Einsatzende, kommen.“`,'Danach Status 1 senden (einsatzbereit über Funk).']);break;
+  }
+}
+function garble(t){const w=t.split(' ');let out=w.map((x,i)=>(i<4||i>=w.length-1)?x:(Math.random()<.42?'…':x));return out.join(' ').replace(/(…\s*)+/g,'… ');}
+function busyNow(){return S.rx||S.tx||rxBusy||!!D.q||!!D.await;}
+function lsCall(q){
+  if(!S.on||S.mode!=='TMO'||!S.scenario&&!q.free)return;
+  if(busyNow()){setTimeout(()=>lsCall(q),5000);return;}
+  D.await=q;playRx(`${S.call} von ${S.ls}, kommen.`,S.ls);updateTask();
+}
+function deliverQ(q,prefix){
+  const text=(typeof q.ask==='function'?q.ask():q.ask);
+  const g=!q.noGarble&&text.split(' ').length>8&&Math.random()<dif().garble;
+  D.q=Object.assign({},q,{text,garbled:g,retries:0});ST.q++;
+  return (prefix||'')+(g?garble(text):text);
+}
+function armTimer(){
+  clearTimeout(ansTimer);
+  if(!S.on||(!D.q&&!D.await))return;
+  ansTimer=setTimeout(noAnswer,dif().ans*1000*((D.q&&(D.q.spell||D.q.lsSpell))?1.8:1));
+}
+function noAnswer(){
+  if(!S.on||S.tx||rxBusy)return armTimer();
+  D.miss=(D.miss||0)+1;ST.to++;
+  if(D.miss===1)playRx(`${S.call} von ${S.ls}, ich warte auf Ihre Antwort, kommen!`,S.ls);
+  else if(D.miss===2){incomingStatus('C');playRx(`${S.call}, hier ${S.ls}, melden Sie sich, kommen!`,S.ls);}
+  else{addLog('sys','Die Leitstelle hat keine Antwort bekommen und bricht die Rückfrage ab.');const q=D.q||D.await;D.q=null;D.await=null;D.miss=0;afterQ(q);}
+  updateTask();
+}
+function stressAnswer(t){
+  if(D.await){
+    const q=D.await;D.await=null;
+    if(q.lageReq){D.q={lageReq:true,text:'Erbitte Lagemeldung, kommen.',retries:0};return{reply:`${S.ls}, erbitte ${S.org==='RD'?'Rückmeldung':'Lagemeldung'}, kommen.`,fb:answerFb(t),speaker:S.ls};}
+    return{reply:deliverQ(q,`${S.ls}, `),fb:answerFb(t),speaker:S.ls};
+  }
+  if(!D.q)return null;
+  const q=D.q;
+  if(q.lageReq){D.q=null;return null;}
+  if(/ wiederholen /.test(t)){ST.wdh++;const fb=q.garbled?{ok:true,hinweis:'Richtig: gestörten Spruch zurückgefragt.'}:{ok:true,hinweis:'Nachfrage ist erlaubt, kostet aber Zeit. Genau zuhören.'};q.garbled=false;return{reply:`Ich wiederhole: ${q.text}`,fb,speaker:S.ls};}
+  if(q.garbled){ST.missWdh++;q.garbled=false;return{reply:`${S.call} von ${S.ls}, der Spruch war gestört und Sie haben nicht nachgefragt. Ich wiederhole: ${q.text}`,fb:{ok:false,hinweis:'Bei gestörtem Empfang sofort „wiederholen, kommen" anfordern, nicht raten.'},speaker:S.ls};}
+  if(q.spell||q.lsSpell)return checkSpell(q,t);
+  const exp=typeof q.expect==='function'?q.expect():q.expect;
+  const words=t.trim().split(' ').length;
+  let ok=exp.test(t)&&(!q.minWords||words>=q.minWords);
+  if(ok&&q.key&&dif().keyNeed&&!q.key.test(t)){
+    q.retries++;
+    if(q.retries<2)return{reply:`${S.call} von ${S.ls}, bestätigen Sie mit den wesentlichen Angaben, kommen.`,fb:{ok:false,hinweis:'„Bestätigen" heißt: die wichtigsten Angaben kurz wiederholen, nicht nur „verstanden".'},speaker:S.ls};
+  }
+  const fb0=evaluate(t);
+  if(ok){
+    ST.ok++;D.q=null;
+    const next=D.queue.shift();
+    if(next){return{reply:deliverQ(next,`${S.ls}, verstanden. Rückfrage: `),fb:fb0,speaker:S.ls};}
+    afterQ(q);
+    const a=actions(t);
+    return{reply:`${S.ls}, verstanden`+(a.length?', '+a.join(', '):'')+', Ende.',fb:fb0,speaker:S.ls};
+  }
+  q.retries++;
+  if(q.retries>=2){D.q=null;D.queue=[];afterQ(q);return{reply:`${S.ls}, Ihre Antwort ist nicht verwertbar. Ich komme darauf zurück, Ende.`,fb:{ok:false,hinweis:'Frage der Leitstelle nicht konkret beantwortet.'},speaker:S.ls};}
+  return{reply:`${S.call} von ${S.ls}, das beantwortet meine Frage nicht. ${q.text}`,fb:{ok:false,hinweis:'Beantworte genau die gestellte Frage, knapp und konkret.'},speaker:S.ls};
+}
+function answerFb(t){
+  if(!/^ hier /.test(t))return{ok:false,hinweis:'Auf einen Anruf antwortest du mit „Hier [dein Rufname], kommen".'};
+  return evaluate(t);
+}
+function lageQuestions(t){
+  const list=(CHECKS[S.org]||[]).filter(c=>!c.rx.test(t)).slice(0,dif().checks);
+  if(!list.length)return null;
+  D.queue=list.slice(1);
+  return deliverQ(list[0],`${S.ls}, verstanden. Rückfrage: `);
+}
+function afterQ(q){
+  if(S.drill){setTimeout(nextDrill,2500);return;}
+  if(!S.scenario||!q)return;
+  if(q.follow){evQueue.unshift(Object.assign({},q.follow,{delay:Math.max(18,dif().gap*.6)}));}
+  scheduleNext();
+}
+function scheduleEvents(){
+  if(!S.scenario||S.scenario.evPlanned)return;S.scenario.evPlanned=true;
+  const ex=EXTRA[S.scenario.st]||{ev:[]};
+  let evs=S.diff==='normal'?ex.ev.slice(0,1):ex.ev.slice();
+  const pool=POOL.slice().sort(()=>Math.random()-.5).slice(0,dif().extra);
+  evQueue=evs.concat(pool);const sq=spellQ(ex);if(sq)evQueue.splice(Math.min(1,evQueue.length),0,sq);
+  scheduleNext();
+}
+function scheduleNext(){
+  clearTimeout(evTimer);
+  if(!S.scenario||!evQueue.length)return;
+  const q=evQueue[0];const d=(q.delay||dif().gap)*1000*(0.8+Math.random()*.4);
+  evTimer=setTimeout(()=>{if(!S.scenario)return;if(busyNow()){evTimer=setTimeout(scheduleNext,4000);return;}evQueue.shift();lsCall(q);},d);
+}
+function scheduleAnfahrt(){
+  const ex=EXTRA[S.scenario&&S.scenario.st];if(!ex)return;
+  clearTimeout(anfTimer);
+  anfTimer=setTimeout(()=>{if(S.scenario)lsCall({ask:ex.anf,expect:/verstanden|\w/,key:ex.key});},9000+Math.random()*8000);
+}
+const UNITS=['Florian Musterstadt 3-LF20-1','Florian Musterstadt 2-DLK23-1','Rettung Musterstadt 2-RTW-1','Florian Musterstadt 1-ELW1-1','Rettung Musterstadt 1-NEF-1','Florian Musterstadt 4-HLF10-1'];
+const CHAT=[
+ u=>[[u,`${S.ls} von ${u}, kommen.`],[S.ls,`Hier ${S.ls}, kommen.`],[u,`Einsatzstelle verlassen, einsatzbereit über Funk, kommen.`],[S.ls,'Verstanden, Ende.']],
+ u=>[[S.ls,`${u} von ${S.ls}, kommen.`],[u,`Hier ${u}, kommen.`],[S.ls,'Neuer Einsatz: Brandmeldeanlage, Schulzentrum Nord. Bestätigen, kommen.'],[u,'Brandmeldeanlage Schulzentrum Nord, verstanden, Ende.']],
+ u=>[[u,`${S.ls} von ${u}, Transportziel Klinikum Musterstadt, Ankunft in zehn Minuten, kommen.`],[S.ls,'Verstanden, Ende.']],
+ u=>[[u,`${S.ls} von ${u}, Rückfrage zur Anfahrt, Brücke gesperrt, erbitte Ausweichroute, kommen.`],[S.ls,'Fahren Sie über die Ringstraße, Ende.']]
+];
+function otherVoice(){const vs=deVoices(),me=pickVoice();return vs.find(v=>!me||v.name!==me.name)||me;}
+function startChatter(){
+  clearTimeout(chatTimer);const n=dif().chatter;if(!n)return;
+  const base=n===2?[18,40]:[35,75];
+  chatTimer=setTimeout(()=>{
+    if(!S.scenario||!S.on)return;
+    if(S.mode==='TMO'&&!S.tx&&!rxBusy&&!S.einzel){
+      const u=UNITS[Math.floor(Math.random()*UNITS.length)],ov=otherVoice();
+      CHAT[Math.floor(Math.random()*CHAT.length)](u).forEach(([who,txt])=>playRx(txt,who,who===S.ls?{other:true}:{other:true,voice:ov,pitch:.85+Math.random()*.3}));
+    }
+    startChatter();
+  },(base[0]+Math.random()*(base[1]-base[0]))*1000);
+}
+function stopStress(){[ansTimer,chatTimer,evTimer,anfTimer].forEach(clearTimeout);evQueue=[];S.drill=null;D.q=null;D.await=null;D.queue=[];D.miss=0;}
+function summary(){
+  return `Auswertung: ${ST.q} Rückfragen der Leitstelle, ${ST.ok} davon korrekt beantwortet. `+
+    `${ST.to} mal zu lange keine Antwort. ${ST.missWdh} gestörte Sprüche nicht zurückgefragt, ${ST.wdh} mal „wiederholen" angefordert. `+
+    `${ST.busy} mal in laufenden Funkverkehr gedrückt. ${ST.spOk} mal richtig buchstabiert, ${ST.spErr} Buchstabierfehler. ${ST.form} Form- oder Inhaltsfehler.`;
 }
 let permitTimer=null,permitAt=0,pttBlocked=false,recOn=false,hotMic=false;
 function pttDown(){
   if(!S.on||S.booting)return;ac();
-  if(S.rx){pttBlocked=true;T.busy();overlay({title:'Gruppe belegt',body:'Warte, bis die Gegenstelle fertig ist.'},1400);return;}
+  if(S.rx){pttBlocked=true;T.busy();ST.busy++;overlay({title:'Gruppe belegt',body:'Warte, bis die Gegenstelle fertig ist.'},1400);line('Funkdisziplin: Nicht in laufenden Funkverkehr drücken.');return;}
   if(S.tx)return;
-  pttBlocked=false;S.tx=true;permitAt=0;S.interim='';render();
+  pttBlocked=false;S.tx=true;permitAt=0;S.interim='';clearTimeout(ansTimer);render();
   permitTimer=setTimeout(()=>{if(S.tx){T.permit();permitAt=Date.now();recOn=startRec();render();}},S.mode==='TMO'?280:90);
 }
 async function pttUp(){
@@ -598,8 +913,14 @@ function sendStatus(n){
   setTimeout(()=>{$('#ledSt').classList.remove('on');S.lastStatus=n;T.ack();overlay({title:'Status '+n,body:STATUS[n]+'\nquittiert'},1800);
     addLog('status',`Status ${n} gesendet: ${STATUS[n]}`);
     if(n===5||n===0)setTimeout(()=>{if(S.on)incomingStatus('J');},n===0?900:2200+Math.random()*2000);
+    const sc=S.scenario;
+    if(sc&&(n===1||n===2)&&(evQueue.length||D.q||D.await||!sc.steps.find(x=>x.k==='lage').done)){
+      setTimeout(()=>playRx(`${S.call} von ${S.ls}, Ihr Status ${n} ist nicht plausibel, es sind noch Meldungen offen. Status korrigieren, kommen.`,S.ls),1200);
+      D.q={ask:'Status korrigieren, kommen.',text:'Status korrigieren, kommen.',expect:/verstanden|korrigier|status|\w/,retries:0,noGarble:true,info:'Bestätige mit „verstanden“ und arbeite erst die offenen Meldungen ab.'};updateTask();return;}
+    if(sc&&n===4&&!sc.steps.find(x=>x.k==='s3').done){setTimeout(()=>playRx(`${S.call} von ${S.ls}, Status drei fehlt. Achten Sie auf die Statusfolge, Ende.`,S.ls),1200);}
     const map={3:'s3',4:'s4',7:'s7',8:'s8',1:'s1',2:'s1'};if(map[n])markStep(map[n]);
-    if(n===4&&S.scenario){showLage();clearTimeout(lTimer);lTimer=setTimeout(()=>{const sc=S.scenario;if(sc&&!sc.steps.find(x=>x.k==='lage').done)lsCall(`${S.ls}, erbitte ${S.org==='RD'?'Rückmeldung':'erste Lagemeldung'}, kommen.`);},75000);}
+    if(n===3&&sc)scheduleAnfahrt();
+    if(n===4&&sc){showLage();clearTimeout(lTimer);lTimer=setTimeout(()=>{const s=S.scenario;if(s&&!s.steps.find(x=>x.k==='lage').done)lsCall({lageReq:true,ask:''});},Math.max(25,dif().gap)*1000);}
   },700);
 }
 
@@ -610,16 +931,16 @@ function stepsFor(org){const b=[{k:'s3',l:'Status 3'},{k:'s4',l:'Status 4'},{k:'
 function startScenario(){
   if(!S.on){line('Erst das Gerät einschalten: rote Taste lang drücken.');return;}
   const l=SCEN[S.org],v=$('#scenSel').value,sc=v==='rand'?l[Math.floor(Math.random()*l.length)]:l[+v];
-  S.scenario={...sc,steps:stepsFor(S.org)};D.connected=false;D.await=null;
+  stopStress();resetStats();S.scenario={...sc,steps:stepsFor(S.org)};D.connected=false;startChatter();
   $('#btnEnd').disabled=false;$('#lageBox').innerHTML='';
   addSds(`${sc.st} | ${sc.adr} | ${sc.info} | Funk: ${TMO[sc.grp][1]}`,true);renderSteps();
   clearTimeout(cTimer);cTimer=setTimeout(()=>{if(S.scenario&&!S.scenario.steps[0].done&&S.on)incomingStatus('C');},60000);
 }
 function markStep(k){const sc=S.scenario;if(!sc)return;const st=sc.steps.find(x=>x.k===k);if(!st||st.done)return;st.done=true;renderSteps();
   if(sc.steps.every(x=>x.done)){const tx=LOG.filter(x=>x.dir==='tx'&&x.fb),g=tx.filter(x=>x.fb.ok).length;
-    addLog('sys',`Übung abgeschlossen.${tx.length?` ${g} von ${tx.length} Funksprüchen ohne Beanstandung.`:''}`);endScenario(true);}}
-function endScenario(keep){clearTimeout(cTimer);clearTimeout(lTimer);S.scenario=null;$('#btnEnd').disabled=true;if(!keep){$('#stepsBox').innerHTML='';$('#lageBox').innerHTML='';}}
-function renderSteps(){const sc=S.scenario;if(!sc)return;const n=sc.steps.findIndex(x=>!x.done);
+    addLog('sys','Übung abgeschlossen. '+summary());endScenario(true);}}
+function endScenario(keep){clearTimeout(cTimer);clearTimeout(lTimer);stopStress();if(S.scenario)$('#lageBox').innerHTML=`<div class="card" style="border-left-color:var(--ok)"><b>Auswertung</b><p>${esc(summary())}</p></div>`;S.scenario=null;$('#taskBox').innerHTML='';$('#btnEnd').disabled=true;if(!keep){$('#stepsBox').innerHTML='';$('#lageBox').innerHTML='';}}
+function renderSteps(){const sc=S.scenario;if(!sc)return;setTimeout(updateTask,0);const n=sc.steps.findIndex(x=>!x.done);
   $('#stepsBox').innerHTML=`<div class="card"><b>${esc(sc.st)}</b><p>${esc(sc.adr)}. Einsatzgruppe: TMO ${esc(TMO[sc.grp][1])}</p><ol class="steps">${sc.steps.map((x,i)=>`<li class="${x.done?'done':i===n?'now':''}">${esc(x.l)}</li>`).join('')}</ol></div>`;}
 function showLage(){const sc=S.scenario;if(!sc)return;$('#lageBox').innerHTML=`<div class="card" style="border-left-color:var(--signal)"><b>Das siehst du vor Ort</b><p>${esc(sc.lage)}</p><p class="small">Setze jetzt deine ${S.org==='RD'?'Rückmeldung':'Lagemeldung'} an die Leitstelle ab.</p></div>`;}
 
@@ -713,7 +1034,7 @@ function select(){
 function lock(){S.locked=!S.locked;overlay({title:S.locked?'Tasten gesperrt':'Tasten entsperrt',body:S.locked?'* lang zum Entsperren':''},1400);}
 function vol(d){S.vol=Math.max(0,Math.min(8,S.vol+d));save();if(!S.on){render();return;}T.click();if(S.screen==='vol')render();else overlay({title:'Lautstärke',body:S.vol+' / 8'},900);}
 function power(){
-  if(S.on){recOff_();stopSpeak();noise(false);Object.assign(S,{on:false,tx:false,rx:false,emergency:false,overlay:null,einzel:null});home();addLog('sys','Gerät aus.');render();return;}
+  if(S.on){recOff_();stopStress();rxQ.length=0;stopSpeak();noise(false);Object.assign(S,{on:false,tx:false,rx:false,emergency:false,overlay:null,einzel:null});home();addLog('sys','Gerät aus.');render();return;}
   ac();S.on=true;home();recOn_();const seq=['Selbsttest','TETRA',S.mode==='TMO'?'Anmeldung im Netz …':'Direktbetrieb'];let i=0;S.booting=seq[0];render();
   const iv=setInterval(()=>{i++;if(i<seq.length){S.booting=seq[i];render();}else{clearInterval(iv);S.booting=false;T.on();render();addLog('sys',`Gerät ein, ${S.mode} ${group()}.`);}},850);
 }
@@ -777,11 +1098,14 @@ window.addEventListener('blur',()=>Object.keys(H).forEach(id=>{if(H[id]._down)kU
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===t?'true':'false'));
   document.querySelectorAll('.tb').forEach(b=>b.classList.toggle('show',b.id==='tab-'+t.dataset.tab));}));
+(function(){const CITY={A:'Aachen',B:'Berlin',C:'Chemnitz',D:'Düsseldorf',E:'Essen',F:'Frankfurt',G:'Goslar',H:'Hamburg',I:'Ingelheim',J:'Jena',K:'Köln',L:'Leipzig',M:'München',N:'Nürnberg',O:'Offenbach',P:'Potsdam',Q:'Quickborn',R:'Rostock',S:'Salzwedel',T:'Tübingen',U:'Unna',V:'Völklingen',W:'Wuppertal',X:'Xanten',Y:'Ypsilon',Z:'Zwickau','Ä':'Umlaut Aachen','Ö':'Umlaut Offenbach','Ü':'Umlaut Unna','ß':'Eszett'};
+$('#tblTafel').innerHTML='<tr><th>Zeichen</th><th>Klassisch</th><th>DIN 5009 (2022)</th></tr>'+Object.keys(TAFEL).map(k=>`<tr><td>${k}</td><td>${TAFEL[k]}</td><td>${CITY[k]}</td></tr>`).join('')+'<tr><td>CH / SCH</td><td>Charlotte / Schule</td><td>einzeln buchstabieren</td></tr>';})();
 $('#tblS').innerHTML='<tr><th>Status</th><th>Bedeutung</th></tr>'+Object.entries(STATUS).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
 $('#tblL').innerHTML='<tr><th>Status</th><th>Bedeutung</th></tr>'+Object.entries(LS).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
 function fillScen(){$('#scenSel').innerHTML='<option value="rand">Zufälliger Einsatz</option>'+SCEN[S.org].map((s,i)=>`<option value="${i}">${esc(s.st)}</option>`).join('');}
 $('#btnAlarm').addEventListener('click',startScenario);
-$('#btnEnd').addEventListener('click',()=>{addLog('sys','Übung beendet.');endScenario(false);});
+$('#btnDrill').addEventListener('click',startDrill);
+$('#btnEnd').addEventListener('click',()=>{addLog('sys','Übung beendet. '+summary());endScenario(true);});
 $('#typeSend').addEventListener('click',typedSend);
 $('#typeIn').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();typedSend();}});
 $('#setOrg').value=S.org;$('#setCall').value=S.call;$('#setLs').value=S.ls;$('#setRate').value=S.rate;$('#setClick').checked=S.click;
@@ -801,6 +1125,7 @@ if('speechSynthesis'in window){fillVoices();speechSynthesis.onvoiceschanged=fill
 if(navigator.brave){line('Brave unterstützt keine Spracherkennung. Öffne den Trainer in Microsoft Edge oder Google Chrome.');}
 else if(!SR)line('Dieser Browser kann keine Spracheingabe. Öffne die Datei in Edge oder Chrome, oder tippe deine Sprüche.');
 micState();
+$('#diffSel').value=S.diff||'schwer';$('#diffSel').addEventListener('change',e=>{S.diff=e.target.value;save();});
 fillScen();renderLog();render();
 })();
 </script>
