@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Digitalfunk-Trainer NRW</title>
+<style>
+:root{
+  --bg:#c7ced3; --panel:#eef1f3; --panel2:#e1e6e9; --ink:#1b2227; --muted:#56626b; --line:#b2bcc2;
+  --signal:#c9401d; --amber:#d49412; --ok:#2b8656; --bad:#b4452a; --focus:#1f6fb2;
+  --font:"Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --cond:"Bahnschrift", "Segoe UI Semibold", "Arial Narrow", Arial, sans-serif;
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#191f24; --panel:#222a30; --panel2:#2a333a; --ink:#e3e8eb; --muted:#9aa7af; --line:#39444c;
+    --signal:#ec5a36; --amber:#e8ad2c; --ok:#4bb07a; --bad:#e0694c; --focus:#5aa4e6; }
+}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.app{display:grid;grid-template-columns:460px minmax(0,1fr);gap:26px;max-width:1300px;margin:0 auto;padding:22px}
+@media (max-width:960px){.app{grid-template-columns:1fr}}
+h1{font-family:var(--cond);font-weight:700;font-size:1.8rem;margin:0 0 2px}
+.lede{color:var(--muted);margin:0 0 6px}
+
+/* ============ Gerät ============ */
+.stage{display:flex;flex-direction:column;align-items:center}
+.rw{position:relative;width:360px;padding:150px 0 20px 40px;user-select:none;-webkit-user-select:none;touch-action:none}
+/* Antenne */
+.ant{position:absolute;left:78px;top:6px;width:44px;height:170px;border-radius:22px 22px 8px 8px;
+  background:linear-gradient(90deg,#0d0e0f 0%,#2b2d30 30%,#3a3d40 45%,#1c1d1f 75%,#0c0d0e 100%);
+  box-shadow:0 4px 8px rgba(0,0,0,.4)}
+.ant::before{content:"";position:absolute;left:6px;right:6px;top:120px;height:44px;border-radius:4px;
+  background:repeating-linear-gradient(180deg,#161718 0 3px,#2a2c2f 3px 6px)}
+.ant::after{content:"";position:absolute;left:14px;top:10px;width:5px;height:90px;border-radius:3px;background:linear-gradient(#4a4e52,transparent)}
+/* Oberseite */
+.topface{position:absolute;left:134px;top:118px;width:170px;height:44px;border-radius:14px 14px 0 0;
+  background:linear-gradient(180deg,#303336,#1d1f21)}
+.knob{position:absolute;border:0;cursor:pointer;border-radius:8px 8px 3px 3px;
+  background:repeating-linear-gradient(90deg,#141516 0 3px,#3a3d41 3px 5px,#25272a 5px 8px);
+  box-shadow:inset 0 3px 0 rgba(255,255,255,.12),inset 0 -4px 6px rgba(0,0,0,.6),0 2px 3px rgba(0,0,0,.5)}
+.knob.g{left:236px;top:68px;width:58px;height:84px}
+.knob.v{left:148px;top:92px;width:40px;height:58px}
+.knob .cap{position:absolute;inset:0 0 auto 0;height:10px;border-radius:8px 8px 0 0;background:linear-gradient(#56595d,#2a2c2f)}
+.knob .dot{position:absolute;top:2px;left:50%;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:#f2f2f2;transition:transform .15s}
+.knob-lbl{position:absolute;font-size:.75rem;color:var(--muted);font-family:var(--cond)}
+.emerg{position:absolute;left:196px;top:118px;width:34px;height:28px;border:0;cursor:pointer;border-radius:7px 7px 2px 2px;
+  background:radial-gradient(ellipse at 50% 25%,#ff9a52,#ec5d14 55%,#b43f08);box-shadow:0 3px 0 #6e2604,inset 0 -3px 4px rgba(0,0,0,.25)}
+.emerg.pressed{transform:translateY(3px);box-shadow:0 0 0 #6e2604}
+/* Gehäuse */
+.radio{position:relative;width:300px;margin-left:28px;padding:26px 20px 26px;
+  border-radius:40px 40px 54px 54px / 34px 34px 70px 70px;
+  background:
+    linear-gradient(90deg,rgba(0,0,0,.55) 0,rgba(255,255,255,.07) 5%,transparent 14%,transparent 86%,rgba(255,255,255,.05) 94%,rgba(0,0,0,.6) 100%),
+    linear-gradient(180deg,#2f3235 0%,#232528 30%,#1b1c1e 70%,#141516 100%);
+  box-shadow:0 40px 60px -25px rgba(0,0,0,.7),0 2px 0 #0a0b0b,inset 0 2px 1px rgba(255,255,255,.1)}
+.radio::before,.radio::after{content:"";position:absolute;top:120px;bottom:120px;width:8px;border-radius:4px;
+  background:repeating-linear-gradient(180deg,#0f1011 0 4px,#26282b 4px 7px)}
+.radio::before{left:3px}.radio::after{right:3px}
+.screw{position:absolute;width:9px;height:9px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#8a8f94,#3b3e41 70%);box-shadow:inset 0 0 0 1px #111}
+.screw::after{content:"";position:absolute;left:1px;right:1px;top:4px;height:1px;background:#1a1b1c;transform:rotate(35deg)}
+.side{position:absolute;left:-17px;width:17px;border:0;cursor:pointer;border-radius:10px 0 0 10px;
+  background:linear-gradient(90deg,#0e0f10,#2c2f32 70%,#1c1d1f);box-shadow:inset 2px 0 0 rgba(255,255,255,.06),-2px 2px 4px rgba(0,0,0,.4)}
+.side.pressed{left:-12px}
+.ptt{top:160px;height:124px}
+.ptt::after{content:"";position:absolute;left:4px;right:3px;top:16px;bottom:16px;border-radius:3px;background:repeating-linear-gradient(0deg,#3b3f43 0 3px,transparent 3px 7px)}
+.s1{top:298px;height:36px}.s2{top:344px;height:36px}
+.side-lbl{position:absolute;right:calc(100% + 24px);font-size:.75rem;color:var(--muted);font-family:var(--cond);white-space:nowrap}
+.acc{position:absolute;right:-9px;top:190px;width:9px;height:110px;border-radius:0 5px 5px 0;background:linear-gradient(90deg,#1a1b1d,#3a3d40)}
+.grille{height:46px;margin:0 36px 8px;border-radius:14px;
+  background:radial-gradient(circle,#050505 1.6px,transparent 2px) 0 0/8px 8px,#232528;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.7)}
+.leds{display:flex;justify-content:center;gap:12px;margin-bottom:8px}
+.led{width:9px;height:9px;border-radius:50%;background:#2d2524;box-shadow:inset 0 1px 1px rgba(0,0,0,.6)}
+.led.tx.on{background:#ff3b22;box-shadow:0 0 10px 2px #ff3b22}
+.led.rx.on{background:#36e070;box-shadow:0 0 10px 2px #36e070}
+.led.st.on{background:#ffb319;box-shadow:0 0 10px 2px #ffb319}
+.bezel{padding:5px;border-radius:10px;background:linear-gradient(180deg,#63686d,#2a2d30 40%,#1a1c1e);box-shadow:inset 0 1px 0 rgba(255,255,255,.2)}
+/* Display */
+.lcd{height:196px;border-radius:5px;background:#07090b;overflow:hidden;position:relative;display:flex;flex-direction:column;font-family:var(--cond);color:#0b2340}
+.lcd.on{background:linear-gradient(180deg,#f5f9fc,#dbe6ef)}
+.lcd.on.dim{filter:brightness(.72)}
+.lcd.on::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(125deg,rgba(255,255,255,.18) 0 14%,transparent 34%)}
+.ibar{display:flex;align-items:center;gap:6px;padding:2px 6px;height:20px;font-size:.8rem;font-weight:600;background:linear-gradient(#e6eef5,#c9d7e3);border-bottom:1px solid #9fb3c5}
+.ibar .sp{flex:1}
+.sig{display:inline-flex;align-items:flex-end;gap:1.5px;height:12px}.sig i{display:block;width:3px;background:#0b2340}
+.bat{display:inline-block;width:20px;height:10px;border:1.5px solid #0b2340;border-radius:2px;position:relative;padding:1px}
+.bat i{display:block;height:100%;width:80%;background:#0b2340}
+.bat::after{content:"";position:absolute;right:-4px;top:2px;width:2px;height:4px;background:#0b2340}
+.tag{padding:0 4px;border-radius:2px;background:#0b2340;color:#fff;font-size:.72rem;line-height:1.3}
+.tag.red{background:#d42d12}
+.main{flex:1;padding:4px 8px 0;display:flex;flex-direction:column;min-height:0}
+.ord{font-size:.82rem;color:#3d5b78;font-weight:600}
+.grp{font-size:1.65rem;font-weight:700;line-height:1.05;margin:1px 0 3px;color:#082038}
+.sub{font-size:.95rem;line-height:1.2;color:#1c3957;overflow:hidden}
+.sub.tx{color:#b3260e;font-weight:600}.sub.rx{color:#157a3c;font-weight:600}
+.sbar{display:grid;grid-template-columns:1fr 1fr 1fr;background:linear-gradient(#2d5f95,#1d4775);color:#fff;font-size:.9rem;font-weight:600}
+.sbar span{padding:2px 6px;text-align:center;white-space:nowrap;overflow:hidden}
+.sbar span:first-child{text-align:left}.sbar span:last-child{text-align:right}
+.mt{font-size:.95rem;font-weight:700;color:#fff;background:#3b6a9c;margin:-4px -8px 3px;padding:1px 8px}
+.ml{list-style:none;margin:0;padding:0;font-size:1rem}
+.ml li{padding:0 6px;border-radius:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ml li.sel{background:#1d4775;color:#fff}
+.big{font-size:2.3rem;font-weight:700;line-height:1;color:#082038}
+.ov{position:absolute;inset:20px 0 0 0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:8px 10px;background:linear-gradient(#f5f9fc,#dbe6ef)}
+.ov .ot{font-size:1.2rem;font-weight:700;color:#1d4775}
+.ov .ob{font-size:1rem;margin-top:3px;line-height:1.2;max-height:120px;overflow:hidden;color:#0b2340}
+.ov.alarm{background:#c01f0a;animation:blink 1s steps(2) infinite}.ov.alarm .ot,.ov.alarm .ob{color:#fff}
+.ov.emg{background:#e3561c}.ov.emg .ot,.ov.emg .ob{color:#fff}
+@keyframes blink{50%{background:#6e1206}}
+@media (prefers-reduced-motion:reduce){.ov.alarm{animation:none}}
+.boot{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;font-size:1.25rem;font-weight:700;color:#1d4775;gap:4px}
+/* Tasten */
+.keys{margin-top:14px}
+.k{border:0;cursor:pointer;color:#eef1f3;font-family:var(--cond);font-weight:600;
+  background:radial-gradient(ellipse at 50% 20%,#51565b 0%,#34383c 55%,#26292c 100%);
+  box-shadow:0 3px 0 #0d0e0f,0 4px 5px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.14)}
+.k.pressed{transform:translateY(2px);box-shadow:0 1px 0 #0d0e0f,inset 0 1px 3px rgba(0,0,0,.5)}
+.softrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px}
+.softrow .k{height:18px;border-radius:9px 9px 5px 5px}
+.navrow{display:grid;grid-template-columns:1fr 112px 1fr;align-items:center;gap:6px;margin-bottom:12px}
+.k.call{height:44px;border-radius:22px 8px 8px 22px;display:flex;align-items:center;justify-content:center}
+.k.call.r{border-radius:8px 22px 22px 8px}
+.k.call svg{width:22px;height:22px}
+.nav{position:relative;width:112px;height:112px;border-radius:50%;
+  background:radial-gradient(circle,#2a2d30 38%,#3d4146 40%,#2e3134 72%,#1f2123 74%);box-shadow:0 3px 0 #0d0e0f,0 4px 6px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.12)}
+.nav button{position:absolute;border:0;background:transparent;color:#9aa1a7;cursor:pointer;font-size:.72rem}
+.nav .up{left:36px;top:2px;width:40px;height:32px}.nav .dn{left:36px;bottom:2px;width:40px;height:32px}
+.nav .lt{left:2px;top:36px;width:32px;height:40px}.nav .rt{right:2px;top:36px;width:32px;height:40px}
+.nav .okb{left:35px;top:35px;width:42px;height:42px;border-radius:50%;color:#eef1f3;font-size:.95rem;
+  background:radial-gradient(ellipse at 50% 25%,#575c61,#33373b 70%);box-shadow:0 2px 0 #0d0e0f,inset 0 1px 0 rgba(255,255,255,.15)}
+.nav button.pressed{color:#fff;transform:scale(.93)}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:9px 12px}
+.pad .k{height:38px;border-radius:14px 14px 18px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.pad .k b{font-size:1.2rem}.pad .k small{font-size:.58rem;color:#a7b0b7;margin-top:2px;letter-spacing:.05em}
+.bottom{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:0 8px}
+.mic{width:30px;height:5px;border-radius:3px;background:#060707;box-shadow:0 1px 0 rgba(255,255,255,.08)}
+.silk{font-family:var(--cond);font-size:.72rem;color:#7d858b;letter-spacing:.08em}
+.hint{font-size:.9rem;color:var(--muted);text-align:center;max-width:40ch;margin:4px auto 0}
+
+/* ============ Panel ============ */
+.panel{background:var(--panel);border-radius:14px;border:1px solid var(--line);min-width:0}
+.tabs{display:flex;gap:4px;padding:8px 8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tab{border:0;background:transparent;padding:9px 14px;border-radius:10px 10px 0 0;cursor:pointer;font-weight:600;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--panel2);color:var(--ink)}
+.tb{padding:16px 20px;display:none}.tb.show{display:block}
+h2{font-family:var(--cond);font-size:1.3rem;margin:0 0 8px}
+h3{font-family:var(--cond);font-size:1.1rem;margin:18px 0 6px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+select,input[type=text]{font:inherit;color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
+.btn{border:1px solid var(--line);background:var(--panel2);padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+.btn.primary{background:var(--signal);border-color:var(--signal);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.steps{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-wrap:wrap;gap:6px}
+.steps li{padding:3px 10px;border-radius:20px;border:1px solid var(--line);font-size:.88rem}
+.steps li.done{background:var(--ok);border-color:var(--ok);color:#fff}
+.steps li.now{box-shadow:inset 0 0 0 2px var(--amber)}
+.card{background:var(--panel2);border-radius:10px;padding:10px 14px;margin-top:12px;border-left:4px solid var(--amber)}
+.card p{margin:4px 0 0}
+.typebox{display:flex;gap:8px;margin-top:14px}.typebox input{flex:1}
+.log{list-style:none;margin:10px 0 0;padding:0;max-height:430px;overflow:auto;border-top:1px solid var(--line)}
+.log li{padding:7px 2px;border-bottom:1px solid var(--line)}
+.log .meta{font-size:.8rem;color:var(--muted)}
+.log .tx .who{color:var(--signal);font-weight:600}.log .rx .who{color:var(--ok);font-weight:600}
+.log .sys{color:var(--muted);font-size:.87rem}
+.fb{margin-top:4px;font-size:.87rem;padding:4px 8px;border-radius:6px;background:var(--panel2)}
+.fb.good{border-left:3px solid var(--ok)}.fb.warn{border-left:3px solid var(--bad)}
+.mstate{display:inline-block;padding:1px 8px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-size:.82rem;margin-right:6px}.mstate.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.line{min-height:1.4em;font-size:.9rem;color:var(--muted);margin-top:8px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+td,th{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+td:first-child{font-weight:700;white-space:nowrap}
+.ex{background:var(--panel2);border-radius:8px;padding:7px 12px;margin:6px 0}
+label.f{display:block;margin:12px 0 4px;font-weight:600}
+.small{font-size:.87rem;color:var(--muted)}
+kbd{font-family:var(--cond);background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.voiceinfo{padding:8px 12px;border-radius:8px;background:var(--panel2);margin-top:8px;font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="app">
+<section class="stage" aria-label="Virtuelles Handfunkgerät">
+  <div style="align-self:stretch">
+    <h1>Digitalfunk-Trainer NRW</h1>
+    <p class="lede">TETRA-Handfunkgerät zum Üben. Die Leitstelle antwortet automatisch mit Sprache.</p>
+  </div>
+  <div class="rw">
+    <div class="ant"></div>
+    <div class="topface"></div>
+    <button class="knob v" id="knobV" aria-label="Lautstärkeknopf"><span class="cap"></span><span class="dot" id="dotV"></span></button>
+    <span class="knob-lbl" style="left:144px;top:72px">Lautst.</span>
+    <button class="emerg" id="emerg" aria-label="Notruftaste, lang drücken"></button>
+    <button class="knob g" id="knobG" aria-label="Gruppenwahlschalter"><span class="cap"></span><span class="dot" id="dotG"></span></button>
+    <span class="knob-lbl" style="left:244px;top:48px">Gruppe</span>
+    <div class="radio">
+      <span class="screw" style="left:22px;top:18px"></span><span class="screw" style="right:22px;top:18px"></span>
+      <span class="screw" style="left:26px;bottom:22px"></span><span class="screw" style="right:26px;bottom:22px"></span>
+      <button class="side ptt" id="ptt" aria-label="Sprechtaste, gedrückt halten"></button>
+      <span class="side-lbl" style="top:212px">Sprechtaste</span>
+      <button class="side s1" id="side1" aria-label="Seitentaste 1, TMO/DMO"></button>
+      <span class="side-lbl" style="top:306px">TMO/DMO</span>
+      <button class="side s2" id="side2" aria-label="Seitentaste 2, Info"></button>
+      <span class="side-lbl" style="top:352px">Info</span>
+      <span class="acc"></span>
+      <div class="grille"></div>
+      <div class="leds"><span class="led tx" id="ledTx"></span><span class="led rx" id="ledRx"></span><span class="led st" id="ledSt"></span></div>
+      <div class="bezel"><div class="lcd" id="lcd" aria-live="polite"></div></div>
+      <div class="keys">
+        <div class="softrow">
+          <button class="k" id="softL" aria-label="Softkey links"></button>
+          <button class="k" id="softM" aria-label="Softkey Mitte"></button>
+          <button class="k" id="softR" aria-label="Softkey rechts"></button>
+        </div>
+        <div class="navrow">
+          <button class="k call" id="green" aria-label="Grüne Taste"><svg viewBox="0 0 24 24" fill="#35d06d"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg></button>
+          <div class="nav">
+            <button class="up" id="up" aria-label="Hoch">&#9650;</button>
+            <button class="lt" id="left" aria-label="Links">&#9664;</button>
+            <button class="okb" id="ok" aria-label="Menü / OK">&#9776;</button>
+            <button class="rt" id="right" aria-label="Rechts">&#9654;</button>
+            <button class="dn" id="down" aria-label="Runter">&#9660;</button>
+          </div>
+          <button class="k call r" id="red" aria-label="Rote Taste, lang: Ein/Aus"><svg viewBox="0 0 24 24" fill="#ff4d36"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1a1 1 0 0 1-.56.9 11.5 11.5 0 0 0-2.66 1.85 1 1 0 0 1-1.4 0L.3 13.1a1 1 0 0 1 0-1.4A16.9 16.9 0 0 1 12 7c4.5 0 8.6 1.75 11.7 4.7a1 1 0 0 1 0 1.4l-2.48 2.47a1 1 0 0 1-1.4 0 11.3 11.3 0 0 0-2.66-1.85 1 1 0 0 1-.56-.9v-3.1A15 15 0 0 0 12 9z"/></svg></button>
+        </div>
+        <div class="pad" id="pad"></div>
+        <div class="bottom"><span class="silk">TETRA</span><span class="mic"></span><span class="silk">BOS</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="hint" id="devHint">Einschalten: rote Taste lang drücken. Sprechen: Sprechtaste oder <kbd>Leertaste</kbd> halten, Ton abwarten.</p>
+</section>
+
+<section class="panel">
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="u">Übung</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="s">Spickzettel</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="e">Einstellungen</button>
+  </div>
+
+  <div class="tb show" id="tab-u">
+    <h2>Einsatzübung</h2>
+    <div class="row">
+      <select id="scenSel" aria-label="Einsatz"></select>
+      <button class="btn primary" id="btnAlarm">Alarm auslösen</button>
+      <button class="btn" id="btnEnd" disabled>Übung beenden</button>
+    </div>
+    <p class="small">Ohne Einsatz kannst du die Leitstelle jederzeit anfunken, zum Beispiel für eine Sprechprobe.</p>
+    <div id="stepsBox"></div>
+    <div id="lageBox"></div>
+    <div class="typebox">
+      <input type="text" id="typeIn" placeholder="Funkspruch tippen, falls kein Mikrofon" aria-label="Funkspruch tippen">
+      <button class="btn" id="typeSend">Senden</button>
+    </div>
+    <div class="line"><span id="micState" class="mstate"></span> <span id="micLine"></span></div>
+    <h3>Funkprotokoll</h3>
+    <ul class="log" id="log"></ul>
+  </div>
+
+  <div class="tb" id="tab-s">
+    <h2>Sprechfunk-Grundregeln</h2>
+    <p>Sprechtaste drücken, Sprechton abwarten, dann sprechen. Zuerst die Gegenstelle, dann „von" und der eigene Rufname. Jeder Spruch endet mit „kommen" (Antwort erwartet) oder „Ende" (Gespräch beendet). Kurz und sachlich, die 2 als „zwo", keine Höflichkeitsfloskeln.</p>
+    <div class="ex"><b>Anruf:</b> Leitstelle Musterstadt von Florian Musterstadt 1-HLF20-1, kommen.</div>
+    <div class="ex"><b>Antwort:</b> Hier Leitstelle Musterstadt, kommen.</div>
+    <div class="ex"><b>Lagemeldung:</b> An Einsatzstelle eingetroffen. Kellerbrand im Mehrfamilienhaus, keine Personen in Gefahr, ein Trupp unter Atemschutz zur Brandbekämpfung eingesetzt, kommen.</div>
+    <div class="ex"><b>Nachforderung:</b> Fordere Polizei zur Straßensperrung nach, kommen.</div>
+    <div class="ex"><b>Abschluss:</b> Verstanden, Ende.</div>
+    <h3>Status Fahrzeug an Leitstelle</h3><div class="tw"><table id="tblS"></table></div>
+    <h3>Status Leitstelle an Fahrzeug</h3><div class="tw"><table id="tblL"></table></div>
+    <p class="small">Status 9 und die Leitstellen-Buchstaben sind regional unterschiedlich belegt. Maßgeblich sind die Vorgaben deiner Leitstelle.</p>
+    <h3>Tasten</h3>
+    <div class="tw"><table>
+      <tr><th>Taste</th><th>Funktion</th><th>Tastatur</th></tr>
+      <tr><td>Sprechtaste</td><td>Halten, Sprechton abwarten, sprechen, loslassen</td><td><kbd>Leertaste</kbd></td></tr>
+      <tr><td>Rote Taste</td><td>Kurz: zurück, Einzelruf beenden. Lang: Ein/Aus</td><td><kbd>Esc</kbd></td></tr>
+      <tr><td>Menütaste</td><td>Menü, Auswahl bestätigen</td><td><kbd>Enter</kbd></td></tr>
+      <tr><td>Hoch/Runter</td><td>Gruppe blättern, im Menü blättern</td><td><kbd>&uarr;</kbd><kbd>&darr;</kbd></td></tr>
+      <tr><td>Links/Rechts</td><td>Lautstärke, im Menü zurück/öffnen</td><td><kbd>&larr;</kbd><kbd>&rarr;</kbd></td></tr>
+      <tr><td>Softkeys</td><td>Funktion steht unten im Display</td><td><kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd></td></tr>
+      <tr><td>0–9</td><td>Status wählen, mit grüner Taste oder „Senden" abschicken</td><td><kbd>0</kbd>–<kbd>9</kbd></td></tr>
+      <tr><td>Grüne Taste</td><td>Status senden, Einzelruf-Kontakte</td><td><kbd>G</kbd></td></tr>
+      <tr><td>* lang</td><td>Tastensperre</td><td><kbd>*</kbd></td></tr>
+      <tr><td>#</td><td>Kurz: Beleuchtung. Lang: stumm</td><td><kbd>#</kbd></td></tr>
+      <tr><td>Notruftaste</td><td>Lang: Notruf mit offenem Mikrofon. Erneut lang: beenden</td><td><kbd>N</kbd> halten</td></tr>
+      <tr><td>Drehknöpfe</td><td>Anklicken links/rechts oder Mausrad</td><td><kbd>,</kbd><kbd>.</kbd> / <kbd>-</kbd><kbd>+</kbd></td></tr>
+      <tr><td>Seitentasten</td><td>TMO/DMO umschalten / Geräteinfo</td><td><kbd>M</kbd> / <kbd>I</kbd></td></tr>
+    </table></div>
+  </div>
+
+  <div class="tb" id="tab-e">
+    <h2>Einstellungen</h2>
+    <label class="f" for="setOrg">Organisation</label>
+    <select id="setOrg"><option value="FW">Feuerwehr</option><option value="RD">Rettungsdienst</option><option value="THW">THW</option></select>
+    <label class="f" for="setCall">Eigener Funkrufname</label>
+    <input type="text" id="setCall" style="width:100%">
+    <label class="f" for="setLs">Leitstelle</label>
+    <input type="text" id="setLs" style="width:100%">
+    <label class="f" for="setVoice">Stimme der Leitstelle</label>
+    <select id="setVoice" style="width:100%"></select>
+    <div class="voiceinfo" id="voiceInfo"></div>
+    <div class="row" style="margin-top:8px"><button class="btn" id="voiceTest">Stimme testen</button></div>
+    <label class="f" for="setRate">Sprechtempo</label>
+    <input type="range" id="setRate" min="0.8" max="1.4" step="0.05" style="width:100%">
+    <label class="f"><input type="checkbox" id="setClick"> Tastentöne</label>
+    <h3>So läuft es am besten</h3>
+    <p class="small">Öffne die Datei in Microsoft Edge. Edge bringt kostenlose, sehr natürliche deutsche Stimmen mit (z. B. „Conrad" oder „Katja", Online/Natural). Chrome geht auch, klingt aber roboterhafter. Für die Spracherkennung braucht der Browser eine Internetverbindung und die Freigabe des Mikrofons.</p>
+  </div>
+</section>
+</div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+
+/* ================= Daten ================= */
+const STATUS={0:'Priorisierter Sprechwunsch',1:'Einsatzbereit über Funk',2:'Einsatzbereit auf Wache',3:'Einsatzauftrag übernommen',4:'Ankunft am Einsatzort',5:'Sprechwunsch',6:'Nicht einsatzbereit',7:'Patient aufgenommen',8:'Am Transportziel',9:'Sonderstatus (regional)'};
+const LS={J:'Sprechaufforderung',C:'Status melden',E:'Einrücken / Einsatz abgebrochen',F:'Kommen über Draht',H:'Wache anfahren',L:'Lagemeldung abgeben',o:'Warten, alle Plätze belegt',u:'Manuelle Quittung'};
+const TMO=[['MS Feuerwehr','MS FW Einsatz 1'],['MS Feuerwehr','MS FW Einsatz 2'],['MS Feuerwehr','MS FW Einsatz 3'],['MS Rettungsdienst','MS RD Einsatz 1'],['MS Rettungsdienst','MS RD Einsatz 2'],['MS KatS','MS THW Einsatz'],['MS KatS','MS KatS 1'],['MS Führung','MS Führung'],['MS Führung','MS LtS Info'],['NRW','NRW Überland 1'],['Übung','MS Übung 1'],['Übung','MS Übung 2']];
+const DMO=[['DMO','DMO EST 1'],['DMO','DMO EST 2'],['DMO','DMO EST 3'],['DMO','DMO AGT 1'],['DMO','DMO AGT 2'],['DMO','DMO Wasser'],['DMO','DMO RD 1'],['DMO','DMO RD 2'],['DMO','DMO Führung'],['DMO','DMO THW'],['DMO','DMO Übung 1'],['DMO','DMO Übung 2']];
+const CONTACTS=['Leitstelle','Wachleiter','Einsatzleitwagen','Kreisbrandmeister'];
+const DEF_CALL={FW:'Florian Musterstadt 1-HLF20-1',RD:'Rettung Musterstadt 1-RTW-1',THW:'Heros Musterstadt 21/52'};
+const SCEN={
+ FW:[
+  {st:'B 2 Kellerbrand',adr:'Lindenallee 14, Musterstadt-Nord',info:'Rauch aus Kellerfenster, Bewohner auf der Straße',lage:'Mehrfamilienhaus, drei Geschosse. Aus zwei Kellerfenstern dringt dichter Rauch. Alle Bewohner sind draußen, der Treppenraum ist rauchfrei. Du setzt einen Trupp unter Atemschutz zur Brandbekämpfung im Keller ein.',grp:1},
+  {st:'TH 2 VU, Person eingeklemmt',adr:'L 404 zwischen Musterstadt und Beispielheim',info:'PKW gegen Baum, eine Person eingeklemmt',lage:'Ein PKW frontal gegen einen Baum. Der Fahrer ist eingeklemmt und ansprechbar. Kein Rettungsdienst vor Ort. Betriebsstoffe laufen aus, kein Brand. Du brauchst RTW, Notarzt und Polizei zur Straßensperrung.',grp:0},
+  {st:'B 3 MiG Wohnungsbrand',adr:'Am Marktplatz 3, Musterstadt-Mitte',info:'Feuer im 2. OG, Person am Fenster',lage:'Wohnung im zweiten Obergeschoss im Vollbrand, eine Person am Fenster zur Straßenseite. Treppenraum verraucht. Du leitest die Menschenrettung über die Drehleiter ein und forderst weitere Kräfte nach.',grp:2},
+  {st:'ABC 1 Gasgeruch',adr:'Industriestraße 9, Musterstadt-Süd',info:'Starker Gasgeruch in Lagerhalle',lage:'Deutlicher Gasgeruch an der Halle, 20 Prozent UEG im Eingangsbereich. Mitarbeiter sind geräumt. Du forderst den Netzbetreiber an und sperrst ab.',grp:1}
+ ],
+ RD:[
+  {st:'RD 2 Atemnot',adr:'Birkenweg 7, Musterstadt-West',info:'Mann, 67 J., akute Atemnot',lage:'Patient männlich, etwa 67 Jahre, deutliche Atemnot, Sättigung 86 Prozent, bekannte COPD, ansprechbar. Du forderst einen Notarzt nach und transportierst ins Klinikum Musterstadt.',grp:3},
+  {st:'RD 1 Sturz',adr:'Seniorenzentrum Am Park, Musterstadt-Mitte',info:'Frau, 84 J., Sturz, Hüftschmerzen',lage:'Patientin 84 Jahre, Verdacht auf Oberschenkelhalsfraktur rechts, Kreislauf stabil. Transport in die Unfallchirurgie des Klinikums Musterstadt.',grp:3},
+  {st:'RD 3 VU mehrere Verletzte',adr:'B 8, Abfahrt Musterstadt-Ost',info:'Zwei PKW, mehrere Verletzte',lage:'Zwei PKW, vier Betroffene, einer schwer verletzt. Feuerwehr vor Ort. Du forderst einen Notarzt und einen weiteren RTW nach.',grp:4}
+ ],
+ THW:[
+  {st:'TH Baum auf Fahrbahn',adr:'K 12, Waldstück Musterstadt-Nord',info:'Umgestürzter Baum blockiert Fahrbahn',lage:'Großer Baum quer über beide Fahrstreifen, keine Personen betroffen. Die Beseitigung dauert etwa zwei Stunden, du brauchst die Polizei zur Sperrung.',grp:5},
+  {st:'Unwetter Wasser im Keller',adr:'Uferstraße 22, Musterstadt',info:'Keller vollgelaufen, Pumpen angefordert',lage:'Keller etwa 60 Zentimeter unter Wasser, Strom abgeschaltet. Ihr setzt zwei Tauchpumpen ein, Dauer etwa 90 Minuten.',grp:5}
+ ]
+};
+
+/* ================= Zustand ================= */
+const S={on:false,booting:false,vol:5,mode:'TMO',gIdx:0,locked:false,light:true,mute:false,
+  screen:'home',menu:null,sel:0,stack:[],pend:null,lastStatus:2,tx:false,rx:false,speaker:'',
+  emergency:false,einzel:null,overlay:null,sds:[],sdsView:0,scenario:null,interim:'',
+  org:'FW',call:DEF_CALL.FW,ls:'Leitstelle Musterstadt',voice:'',rate:1.0,click:true};
+try{Object.assign(S,JSON.parse(localStorage.getItem('dft2')||'{}'));}catch(e){}
+function save(){try{localStorage.setItem('dft2',JSON.stringify({org:S.org,call:S.call,ls:S.ls,voice:S.voice,rate:S.rate,click:S.click,vol:S.vol}));}catch(e){}}
+const list=()=>S.mode==='TMO'?TMO:DMO;
+const group=()=>list()[S.gIdx][1];
+const folder=()=>list()[S.gIdx][0];
+
+/* ================= Audio ================= */
+let AC=null,noiseSrc=null;
+function ac(){if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}}if(AC.state==='suspended')AC.resume();return AC;}
+function tone(seq,type='sine',gain=1){
+  const c=ac();if(!c||S.mute||S.vol===0)return;
+  let t=c.currentTime+.01;const g0=.2*gain*(S.vol/8);
+  for(const[f,ms]of seq){if(f>0){const o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=f;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(g0,t+.005);g.gain.setValueAtTime(g0,t+ms/1000-.01);g.gain.linearRampToValueAtTime(0,t+ms/1000);
+    o.connect(g).connect(c.destination);o.start(t);o.stop(t+ms/1000+.02);}t+=ms/1000;}
+}
+const T={
+  click:()=>S.click&&tone([[1600,22]],'square',.2),
+  permit:()=>tone([[1000,100]],'sine',.9),
+  busy:()=>tone([[425,200],[0,150],[425,200],[0,150],[425,200]],'square',.45),
+  err:()=>tone([[300,280]],'square',.45),
+  ack:()=>tone([[1650,60],[0,40],[2050,80]]),
+  sds:()=>tone([[1400,90],[0,60],[1400,90],[0,60],[1800,120]]),
+  rx:()=>tone([[900,45]],'sine',.55),
+  emg:()=>tone([[1250,180],[850,180],[1250,180],[850,180],[1250,180],[850,180]],'square',.5),
+  alarm:()=>tone([[1000,220],[1330,220],[1000,220],[1330,220],[1000,220],[1330,220],[1000,220],[1330,220]],'square',.55),
+  on:()=>tone([[880,80],[1180,80],[1480,130]])
+};
+function noise(on){
+  const c=ac();if(!c)return;
+  if(on&&!noiseSrc){const b=c.createBuffer(1,c.sampleRate*2,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+    const s=c.createBufferSource();s.buffer=b;s.loop=true;const f=c.createBiquadFilter();f.type='bandpass';f.frequency.value=1800;f.Q.value=.7;
+    const g=c.createGain();g.gain.value=S.mute?0:.01*(S.vol/8);s.connect(f).connect(g).connect(c.destination);s.start();noiseSrc=s;}
+  else if(!on&&noiseSrc){try{noiseSrc.stop()}catch(e){}noiseSrc=null;}
+}
+
+/* ================= Stimme ================= */
+function deVoices(){
+  if(!('speechSynthesis'in window))return[];
+  const v=speechSynthesis.getVoices().filter(v=>/^de/i.test(v.lang));
+  const score=x=>(/natural/i.test(x.name)?4:0)+(/online/i.test(x.name)?2:0)+(/de-DE/i.test(x.lang)?1:0);
+  return v.sort((a,b)=>score(b)-score(a));
+}
+function pickVoice(){const v=deVoices();return v.find(x=>x.name===S.voice)||v[0]||null;}
+function speakable(s){
+  return s.replace(/(\d)\s*\/\s*(\d)/g,'$1 $2').replace(/-/g,' ')
+    .replace(/([A-Za-zÄÖÜ]{2,})(\d)/g,'$1 $2').replace(/(\d)([A-Za-zÄÖÜ])/g,'$1 $2')
+    .replace(/\b([A-ZÄÖÜ]{2,4})\b/g,(m)=>['UEG','NEF','DLK','HLF','RTW','LF','ELW','KTW','MTW','GW','TLF','NA','OG','EG','VU','THW','ABC','SDS','DMO','TMO'].includes(m)?m.split('').join(' '):m)
+    .replace(/\b2\b/g,'zwo');
+}
+function speak(text,done){
+  let fin=false;const end=()=>{if(!fin){fin=true;done&&done();}};
+  if(!('speechSynthesis'in window)||S.mute||S.vol===0){setTimeout(end,900+text.length*55);return;}
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(speakable(text));u.lang='de-DE';
+  const v=pickVoice();if(v)u.voice=v;u.rate=S.rate;u.pitch=1;u.volume=Math.min(1,S.vol/8);
+  u.onend=end;u.onerror=end;speechSynthesis.speak(u);
+  setTimeout(end,5000+text.length*130);
+}
+function stopSpeak(){if('speechSynthesis'in window)speechSynthesis.cancel();}
+
+/* ================= Spracherkennung ================= */
+/* Die Erkennung läuft durchgehend, solange das Gerät an ist. Ausgewertet wird nur,
+   was bei gedrückter Sprechtaste gesprochen wird. So fragt der Browser nur einmal nach dem Mikrofon. */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec=null,recRunning=false,micBlocked=false,capOpen=false,capMap={},capBase=0,lastFinal=-1,cur={},pre='',wantRec=false;
+function ensureRec(){
+  if(!SR||micBlocked||recRunning)return;
+  try{
+    if(!rec){
+      rec=new SR();rec.lang='de-DE';rec.continuous=true;rec.interimResults=true;
+      rec.onresult=e=>{
+        for(let k=e.resultIndex;k<e.results.length;k++){
+          const r=e.results[k];let t=r[0].transcript;cur[k]=t;
+          if(r.isFinal)lastFinal=Math.max(lastFinal,k);
+          if(capOpen&&k>=capBase){if(k===capBase&&pre&&t.startsWith(pre))t=t.slice(pre.length);capMap[k]=t;}
+        }
+        if(capOpen){S.interim=capText();render();}
+      };
+      rec.onerror=e=>{
+        if(['not-allowed','service-not-allowed','audio-capture'].includes(e.error)){micBlocked=true;wantRec=false;line('Mikrofon nicht freigegeben. Klick auf das Schloss-Symbol in der Adresszeile und erlaube das Mikrofon, dann Seite neu laden.');}
+        if(e.error==='network')line('Spracherkennung braucht eine Internetverbindung.');
+      };
+      rec.onstart=()=>{recRunning=true;};
+      rec.onend=()=>{recRunning=false;lastFinal=-1;cur={};capBase=0;pre='';if(capOpen&&wantRec&&!micBlocked)ensureRec();};
+    }
+    rec.start();recRunning=true;
+  }catch(e){}
+}
+let micStream=null;
+async function micInit(){
+  if(micStream||micBlocked)return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return;
+  try{const st=await navigator.mediaDevices.getUserMedia({audio:true});st.getTracks().forEach(t=>t.stop());micStream=true;micState();}
+  catch(e){micBlocked=true;micState();line('Mikrofon nicht freigegeben. Klick auf das Schloss-Symbol in der Adresszeile, erlaube das Mikrofon und lade die Seite neu.');}
+}
+function micState(){const el=document.getElementById('micState');if(!el)return;
+  el.textContent=!SR?'Spracheingabe nicht verfügbar':micBlocked?'Mikrofon gesperrt':micStream?'Mikrofon bereit':'Mikrofon noch nicht freigegeben';
+  el.className='mstate '+(micStream&&SR&&!micBlocked?'ok':'');}
+async function recOn_(){wantRec=true;await micInit();}
+function recOff_(){wantRec=false;capOpen=false;if(rec&&recRunning){try{rec.abort();}catch(e){}}}
+function capText(){return Object.keys(capMap).map(Number).sort((a,b)=>a-b).map(k=>capMap[k]).join(' ').replace(/\s+/g,' ').trim();}
+function startRec(){
+  if(!SR||micBlocked)return false;
+  wantRec=true;ensureRec();
+  capMap={};capBase=lastFinal+1;pre=cur[capBase]||'';capOpen=true;
+  return true;
+}
+function stopRec(){
+  return new Promise(res=>{
+    // kurz nachlaufen lassen, damit das letzte Wort fertig erkannt wird
+    setTimeout(()=>{capOpen=false;const t=capText();capMap={};res(t);},1100);
+  });
+}
+function line(t){$('#micLine').textContent=t;}
+
+/* ================= Leitstellen-Logik ================= */
+const D={connected:false,lastLs:'',await:null,emg:false};
+const norm=s=>' '+s.toLowerCase().replace(/[.,!?;:„"“”']/g,' ').replace(/\s+/g,' ').trim()+' ';
+function meKey(){return S.call.toLowerCase().split(/[\s\-\/]+/)[0];}
+function peer(){if(S.einzel)return S.einzel==='Leitstelle'?S.ls:S.einzel;return S.mode==='TMO'?S.ls:'Einsatzleiter';}
+const CONTENT=/eingetroffen|lage|brand|feuer|rauch|person|patient|verletz|eingeklemmt|trupp|atemschutz|fordere|nachforder|benötige|brauche|rtw|rettungswagen|notarzt|nef|polizei|drehleiter|transport|klinik|krankenhaus|gas|wasser|keller|baum|pumpe|sperr|beendet|einsatzende|rückfahrt|einrücken|erkundung|vorgehen|eingesetzt|eingeleitet|rückmeldung|frei|abgeschlossen|verstanden/;
+
+function evaluate(t,ctx){
+  const words=t.trim().split(' ').filter(Boolean);
+  const endsK=/ kommen $/.test(t), endsE=/ ende $/.test(t);
+  if(/ (bitte|danke|hallo|tschüss|guten tag) /.test(t))return{ok:false,hinweis:'Keine Höflichkeitsfloskeln im Sprechfunk, nur Inhalt.'};
+  if(!endsK&&!endsE)return{ok:false,hinweis:'Beende jeden Spruch mit „kommen" (Antwort erwartet) oder „Ende".'};
+  const m=t.match(/^ (.*?) von (.*)$/);
+  if(m&&m[1].includes(meKey())&&/leitstelle/.test(m[2]))return{ok:false,hinweis:'Reihenfolge vertauscht: zuerst die Gegenstelle, dann „von" und dein eigener Rufname.'};
+  if(ctx==='anrufOhneVon')return{ok:false,hinweis:'Beim ersten Anruf: Gegenstelle, „von", eigener Rufname, „kommen".'};
+  if(words.length>48)return{ok:false,hinweis:'Sehr langer Spruch. Kürzer fassen oder in zwei Sprüche teilen.'};
+  if(ctx==='lage'&&!/eingesetzt|eingeleitet|vorgehen|fordere|nachforder|benötige|brauche|maßnahme|sperr|transport/.test(t))return{ok:false,hinweis:'Zur Lagemeldung gehören auch deine Maßnahmen oder Nachforderungen.'};
+  return{ok:true,hinweis:endsE?'Sauber mit „Ende" abgeschlossen.':'Form und Aufbau korrekt.'};
+}
+function actions(t){
+  const a=[];
+  if(/rtw|rettungswagen/.test(t))a.push('ein weiterer RTW wird alarmiert');
+  if(/notarzt|nef/.test(t))a.push('Notarzt wird alarmiert');
+  if(/polizei/.test(t))a.push('Polizei wird verständigt');
+  if(/drehleiter|dlk/.test(t))a.push('Drehleiter wird nachalarmiert');
+  if(/weitere kräfte|nachalarm|zweiten zug|weiteren zug|verstärkung/.test(t))a.push('weitere Kräfte werden alarmiert');
+  if(/netzbetreiber|stadtwerke|energieversorger/.test(t))a.push('Netzbetreiber wird verständigt');
+  if(/abschlepp/.test(t))a.push('Abschleppdienst wird verständigt');
+  if(/ klinik|krankenhaus|transport/.test(t)&&S.org==='RD')a.push('Klinikum Musterstadt, Zentrale Notaufnahme, ist vorangemeldet');
+  if(/einsatzende|einsatz beendet|rückfahrt|einrücken|abgeschlossen/.test(t))a.push('Einsatzende notiert');
+  return a;
+}
+function respond(raw,notruf){
+  const t=norm(raw),p=peer(),me=S.call;
+  const endsK=/ kommen $/.test(t),endsE=/ ende $/.test(t);
+  const out=(reply,fb,extra)=>Object.assign({reply,fb,speaker:p},extra||{});
+  if(notruf){D.connected=true;D.emg=true;return out(`${me} von ${p}, Notruf empfangen. Melden Sie Standort und Lage, kommen.`,null);}
+  if(S.mode==='DMO'&&!S.einzel&&/leitstelle/.test(t))return out('',{ok:false,hinweis:'Im DMO hört dich keine Leitstelle. Für die Leitstelle in den TMO wechseln.'});
+  if(S.mode==='TMO'&&!S.einzel&&S.scenario&&S.gIdx!==S.scenario.grp&&/leitstelle/.test(t)){
+    return out(`${me} von ${p}, Sie sind auf der falschen Gruppe. Wechseln Sie auf ${TMO[S.scenario.grp][1]}, Ende.`,{ok:false,hinweis:'Einsatzgruppe aus der Alarmierung beachten.'});}
+  if(/ wiederholen /.test(t)&&D.lastLs)return out(D.lastLs,{ok:true,hinweis:'Nachfrage korrekt.'});
+  if(D.await&&(/^ hier /.test(t)||t.includes(meKey()))){const r=D.await;D.await=null;D.connected=true;return out(r,evaluate(t));}
+  const m=t.match(/^ (.*?) von (.*)$/);
+  const rest=m?m[2].replace(/ kommen $/,' ').trim():'';
+  const hasContent=CONTENT.test(t);
+  // Sprechprobe
+  if(/sprechprobe|funkprobe|verbindungsprobe|verständigungsprobe/.test(t)){D.connected=true;return out(`Hier ${p}, Verständigung gut, kommen.`,evaluate(t));}
+  // reiner Anruf
+  if(m&&rest.split(' ').length<=7&&!hasContent){D.connected=true;return out(`Hier ${p}, kommen.`,evaluate(t));}
+  if(D.emg&&D.connected){const r=`${p}, verstanden. Kräfte sind alarmiert und auf Anfahrt. Halten Sie Verbindung, kommen.`;return out(r,evaluate(t));}
+  if(!D.connected&&!m){return out(`Hier ${p}. Unbekannte Station, wiederholen, kommen.`,evaluate(t,'anrufOhneVon'));}
+  // Inhalt
+  const sc=S.scenario, needLage=sc&&sc.steps.find(x=>x.k==='s4'&&x.done)&&!sc.steps.find(x=>x.k==='lage'&&x.done);
+  const isLage=needLage&&t.split(' ').length>8&&hasContent;
+  const fb=evaluate(t,isLage?'lage':null);
+  if(/^ verstanden/.test(t)&&t.split(' ').length<6){D.connected=!endsE;return out(endsE?'':`${p}, Ende.`,fb);}
+  const a=actions(t);
+  if(/transportziel|welche klinik|wohin/.test(t))a.push('Transportziel Klinikum Musterstadt, Zentrale Notaufnahme');
+  if(!hasContent&&!a.length){D.connected=true;return out(`${me} von ${p}, nicht verstanden, wiederholen, kommen.`,fb);}
+  D.connected=endsK;
+  if(endsE)return out('',fb,{lage:isLage});
+  const reply=`${p}, verstanden`+(a.length?', '+a.join(', '):'')+', Ende.';
+  D.connected=false;
+  return out(reply,fb,{lage:isLage});
+}
+function lsCall(followup){
+  if(!S.on||S.mode!=='TMO')return;
+  if(S.rx||S.tx){setTimeout(()=>lsCall(followup),6000);return;}
+  D.await=followup;playRx(`${S.call} von ${S.ls}, kommen.`,S.ls);
+}
+
+/* ================= Empfang/Senden ================= */
+function playRx(text,who){
+  S.rx=true;S.speaker=who;render();T.rx();noise(true);D.lastLs=text;
+  addLog('rx',text,who);
+  setTimeout(()=>speak(text,()=>{S.rx=false;noise(false);render();}),150);
+}
+function handle(text,notruf){
+  const r=respond(text,notruf);
+  const last=[...LOG].reverse().find(x=>x.dir==='tx');
+  if(r.fb&&last&&!notruf){last.fb=r.fb;renderLog();}
+  if(r.lage)markStep('lage');
+  if(r.reply)setTimeout(()=>{if(S.on)playRx(r.reply,r.speaker);},700+Math.random()*700);
+}
+let permitTimer=null,permitAt=0,pttBlocked=false,recOn=false,hotMic=false;
+function pttDown(){
+  if(!S.on||S.booting)return;ac();
+  if(S.rx){pttBlocked=true;T.busy();overlay({title:'Gruppe belegt',body:'Warte, bis die Gegenstelle fertig ist.'},1400);return;}
+  if(S.tx)return;
+  pttBlocked=false;S.tx=true;permitAt=0;S.interim='';render();
+  permitTimer=setTimeout(()=>{if(S.tx){T.permit();permitAt=Date.now();recOn=startRec();render();}},S.mode==='TMO'?280:90);
+}
+async function pttUp(){
+  if(pttBlocked){pttBlocked=false;return;}
+  if(!S.tx||hotMic)return;
+  clearTimeout(permitTimer);S.tx=false;render();
+  if(!permitAt){line('Zu früh losgelassen: Sprechtaste halten, bis der Sprechton kommt.');return;}
+  const text=recOn?await stopRec():'';recOn=false;S.interim='';render();
+  if(!SR){line('Dieser Browser kann keine Spracheingabe. Nimm Edge oder Chrome oder tippe den Spruch.');return;}
+  if(micBlocked)return;
+  if(!text){line('Nichts verstanden. Nach dem Sprechton deutlich sprechen.');return;}
+  line('');transmit(text);
+}
+function transmit(text,notruf){addLog('tx',text,S.call+(S.einzel?' an '+S.einzel:''));handle(text,notruf);}
+function typedSend(){
+  const inp=$('#typeIn'),t=inp.value.trim();if(!t)return;
+  if(!S.on){line('Das Gerät ist aus. Rote Taste lang drücken.');return;}
+  if(S.rx){T.busy();line('Gruppe belegt.');return;}
+  inp.value='';ac();S.tx=true;render();
+  setTimeout(()=>T.permit(),S.mode==='TMO'?280:90);
+  setTimeout(()=>{S.tx=false;render();transmit(t);},Math.min(2500,600+t.length*25));
+}
+function toggleEmergency(){
+  if(!S.on)return;
+  if(S.emergency){S.emergency=false;D.emg=false;addLog('sys','Notruf beendet.');render();return;}
+  S.emergency=true;stopSpeak();S.rx=false;noise(false);T.emg();
+  overlay({title:'NOTRUF',body:'Mikrofon offen',cls:'emg'},2500);
+  addLog('sys','NOTRUF ausgelöst, Mikrofon 8 Sekunden offen.');
+  hotMic=true;S.tx=true;permitAt=Date.now();render();
+  setTimeout(()=>{recOn=startRec();},1200);
+  setTimeout(async()=>{const text=recOn?await stopRec():'';recOn=false;hotMic=false;S.tx=false;S.interim='';render();
+    if(text)addLog('tx',text,S.call+' (Notruf)');handle(text,true);},9200);
+}
+
+/* ================= Status / SDS ================= */
+function incomingStatus(c){T.ack();$('#ledSt').classList.add('on');setTimeout(()=>$('#ledSt').classList.remove('on'),1500);
+  overlay({title:'Status '+c,body:LS[c]},9000);addLog('sys',`Status ${c} von der Leitstelle: ${LS[c]}`);}
+function addSds(text,alarm){
+  S.sds.unshift({text,time:hhmm()});
+  if(alarm){T.alarm();overlay({title:'ALARM',body:text,cls:'alarm'},0);}else{T.sds();overlay({title:'SDS',body:text},9000);}
+  addLog('sys',(alarm?'Alarmierung per SDS: ':'SDS: ')+text);
+}
+function sendStatus(n){
+  if(S.mode!=='TMO'){T.err();overlay({title:'Nicht möglich',body:'Status nur im TMO'},2200);return;}
+  overlay({title:'Status '+n,body:'wird gesendet …'},0);$('#ledSt').classList.add('on');
+  setTimeout(()=>{$('#ledSt').classList.remove('on');S.lastStatus=n;T.ack();overlay({title:'Status '+n,body:STATUS[n]+'\nquittiert'},1800);
+    addLog('status',`Status ${n} gesendet: ${STATUS[n]}`);
+    if(n===5||n===0)setTimeout(()=>{if(S.on)incomingStatus('J');},n===0?900:2200+Math.random()*2000);
+    const map={3:'s3',4:'s4',7:'s7',8:'s8',1:'s1',2:'s1'};if(map[n])markStep(map[n]);
+    if(n===4&&S.scenario){showLage();clearTimeout(lTimer);lTimer=setTimeout(()=>{const sc=S.scenario;if(sc&&!sc.steps.find(x=>x.k==='lage').done)lsCall(`${S.ls}, erbitte ${S.org==='RD'?'Rückmeldung':'erste Lagemeldung'}, kommen.`);},75000);}
+  },700);
+}
+
+/* ================= Übung ================= */
+let cTimer=null,lTimer=null;
+function stepsFor(org){const b=[{k:'s3',l:'Status 3'},{k:'s4',l:'Status 4'},{k:'lage',l:org==='RD'?'Rückmeldung':'Lagemeldung'}];
+  if(org==='RD')b.push({k:'s7',l:'Status 7'},{k:'s8',l:'Status 8'});b.push({k:'s1',l:'Status 1 oder 2'});return b.map(x=>({...x,done:false}));}
+function startScenario(){
+  if(!S.on){line('Erst das Gerät einschalten: rote Taste lang drücken.');return;}
+  const l=SCEN[S.org],v=$('#scenSel').value,sc=v==='rand'?l[Math.floor(Math.random()*l.length)]:l[+v];
+  S.scenario={...sc,steps:stepsFor(S.org)};D.connected=false;D.await=null;
+  $('#btnEnd').disabled=false;$('#lageBox').innerHTML='';
+  addSds(`${sc.st} | ${sc.adr} | ${sc.info} | Funk: ${TMO[sc.grp][1]}`,true);renderSteps();
+  clearTimeout(cTimer);cTimer=setTimeout(()=>{if(S.scenario&&!S.scenario.steps[0].done&&S.on)incomingStatus('C');},60000);
+}
+function markStep(k){const sc=S.scenario;if(!sc)return;const st=sc.steps.find(x=>x.k===k);if(!st||st.done)return;st.done=true;renderSteps();
+  if(sc.steps.every(x=>x.done)){const tx=LOG.filter(x=>x.dir==='tx'&&x.fb),g=tx.filter(x=>x.fb.ok).length;
+    addLog('sys',`Übung abgeschlossen.${tx.length?` ${g} von ${tx.length} Funksprüchen ohne Beanstandung.`:''}`);endScenario(true);}}
+function endScenario(keep){clearTimeout(cTimer);clearTimeout(lTimer);S.scenario=null;$('#btnEnd').disabled=true;if(!keep){$('#stepsBox').innerHTML='';$('#lageBox').innerHTML='';}}
+function renderSteps(){const sc=S.scenario;if(!sc)return;const n=sc.steps.findIndex(x=>!x.done);
+  $('#stepsBox').innerHTML=`<div class="card"><b>${esc(sc.st)}</b><p>${esc(sc.adr)}. Einsatzgruppe: TMO ${esc(TMO[sc.grp][1])}</p><ol class="steps">${sc.steps.map((x,i)=>`<li class="${x.done?'done':i===n?'now':''}">${esc(x.l)}</li>`).join('')}</ol></div>`;}
+function showLage(){const sc=S.scenario;if(!sc)return;$('#lageBox').innerHTML=`<div class="card" style="border-left-color:var(--signal)"><b>Das siehst du vor Ort</b><p>${esc(sc.lage)}</p><p class="small">Setze jetzt deine ${S.org==='RD'?'Rückmeldung':'Lagemeldung'} an die Leitstelle ab.</p></div>`;}
+
+/* ================= Protokoll ================= */
+const LOG=[];
+function hhmm(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function addLog(dir,text,who){LOG.push({dir,text,who,time:hhmm()});renderLog();}
+function renderLog(){$('#log').innerHTML=LOG.slice().reverse().map(e=>{
+  if(e.dir==='sys'||e.dir==='status')return`<li class="sys">${e.time} ${esc(e.text)}</li>`;
+  const fb=e.fb?`<div class="fb ${e.fb.ok?'good':'warn'}">${e.fb.ok?'Gut':'Tipp'}: ${esc(e.fb.hinweis)}</div>`:'';
+  return`<li class="${e.dir}"><div class="meta">${e.time} <span class="who">${esc(e.who||'')}</span></div>${esc(e.text)}${fb}</li>`;}).join('')||'<li class="sys">Noch kein Funkverkehr.</li>';}
+
+/* ================= Display ================= */
+let ovT=null;
+function overlay(o,ms){S.overlay=o;clearTimeout(ovT);if(ms)ovT=setTimeout(()=>{S.overlay=null;render();},ms);render();}
+function menuItems(){switch(S.menu){
+  case'main':return['Gruppen','Betriebsart','Status','Nachrichten','Einzelruf','Lautstärke','Tastensperre','Geräteinfo'];
+  case'mode':return['TMO Netzbetrieb','DMO Direktbetrieb'];
+  case'groups':return list().map(x=>x[1]);
+  case'status':return Object.keys(STATUS).map(k=>k+' '+STATUS[k]);
+  case'sds':return S.sds.length?S.sds.map(x=>x.time+' '+x.text):['Keine Nachrichten'];
+  case'contacts':return CONTACTS;default:return[];}}
+const MT={main:'Menü',mode:'Betriebsart',groups:'Gruppen',status:'Status',sds:'Nachrichten',contacts:'Einzelruf'};
+function render(){
+  const lcd=$('#lcd');
+  $('#ledTx').classList.toggle('on',S.tx);$('#ledRx').classList.toggle('on',S.rx);
+  $('#dotG').style.transform=`translateX(${(S.gIdx-5.5)*3.4}px)`;$('#dotV').style.transform=`translateX(${(S.vol-4)*2.6}px)`;
+  $('#devHint').style.visibility=S.on?'hidden':'visible';
+  if(!S.on){lcd.className='lcd';lcd.innerHTML='';return;}
+  lcd.className='lcd on'+(S.light?'':' dim');
+  if(S.booting){lcd.innerHTML=`<div class="boot">${S.booting}</div>`;return;}
+  const sig=`<span class="sig">${[3,5,8,11].map(h=>`<i style="height:${h}px"></i>`).join('')}</span>`;
+  const top=`<div class="ibar">${S.mode==='TMO'?sig+'<span class="tag">TMO</span>':'<span class="tag">DMO</span>'}${S.emergency?'<span class="tag red">NOT</span>':''}${S.locked?'<span>&#128274;</span>':''}${S.mute?'<span>&#128263;</span>':''}${S.sds.length?`<span>&#9993;</span>`:''}<span class="sp"></span><span>${hhmm()}</span><span class="bat"><i></i></span></div>`;
+  let main='',soft=['','',''];
+  if(S.screen==='home'){
+    let sub=`Status ${S.lastStatus} ${STATUS[S.lastStatus]}`,cls='';
+    if(S.tx){cls='tx';sub=S.emergency?'NOTRUF, Mikrofon offen':(permitAt?'Senden'+(S.interim?': „'+S.interim.slice(-55)+'"':' …'):'Warte …');}
+    else if(S.rx){cls='rx';sub='Spr: '+S.speaker;}
+    else if(S.einzel){sub='Einzelruf: '+S.einzel+' – PTT';}
+    main=`<div class="ord">${esc(folder())}</div><div class="grp">${esc(group())}</div><div class="sub ${cls}">${esc(sub)}</div>`;
+    soft=['Status','Menü','Kontakt'];
+  }else if(S.screen==='menu'){
+    const it=menuItems(),st=Math.max(0,Math.min(S.sel-2,it.length-5));
+    main=`<div class="mt">${MT[S.menu]}</div><ul class="ml">${it.slice(st,st+5).map((x,i)=>`<li class="${st+i===S.sel?'sel':''}">${esc(x)}</li>`).join('')}</ul>`;
+    soft=['Wählen','','Zurück'];
+  }else if(S.screen==='confirm'){
+    main=`<div class="mt">Status senden?</div><div class="big">${S.pend}</div><div class="sub">${STATUS[S.pend]}</div>`;soft=['Senden','','Zurück'];
+  }else if(S.screen==='sdsview'){
+    const m=S.sds[S.sdsView];main=`<div class="mt">Nachricht ${m?m.time:''}</div><div class="sub">${m?esc(m.text):''}</div>`;soft=['','','Zurück'];
+  }else if(S.screen==='info'){
+    main=`<div class="mt">Geräteinfo</div><div class="sub">${esc(S.call)}<br>ISSI 3591 0472<br>${S.mode} ${esc(group())}<br>Lautstärke ${S.vol}/8</div>`;soft=['','','Zurück'];
+  }else if(S.screen==='vol'){
+    main=`<div class="mt">Lautstärke</div><div class="big">${S.vol}</div><div class="sub">&#9664; &#9654; ändern</div>`;soft=['','','Zurück'];
+  }
+  let ov='';if(S.overlay){const o=S.overlay;ov=`<div class="ov ${o.cls||''}"><div class="ot">${esc(o.title)}</div><div class="ob">${esc(o.body||'').replace(/\n/g,'<br>')}</div></div>`;soft=['','OK',''];}
+  lcd.innerHTML=top+`<div class="main">${main}</div><div class="sbar"><span>${soft[0]}</span><span>${soft[1]}</span><span>${soft[2]}</span></div>`+ov;
+}
+setInterval(()=>{if(S.on&&!S.booting)render();},20000);
+
+/* ================= Navigation ================= */
+function openMenu(m){if(S.screen==='menu')S.stack.push([S.menu,S.sel]);S.screen='menu';S.menu=m;S.sel=m==='groups'?S.gIdx:0;render();}
+function home(){S.screen='home';S.menu=null;S.stack=[];}
+function back(){
+  if(S.overlay){S.overlay=null;render();return;}
+  if(S.screen==='menu'&&S.stack.length){const[m,s]=S.stack.pop();S.menu=m;S.sel=s;render();return;}
+  if(S.screen==='sdsview'){S.screen='menu';render();return;}
+  if(S.screen!=='home'){home();render();return;}
+  if(S.einzel){addLog('sys','Einzelruf beendet.');S.einzel=null;render();}
+}
+function setGroup(i,log){const n=list().length;S.gIdx=(i+n)%n;D.connected=false;
+  if(S.on){T.click();overlay({title:S.mode==='TMO'?'Gruppe':'DMO-Gruppe',body:group()},1000);if(log)addLog('sys','Gruppe: '+group());}render();}
+function setMode(m){if(S.mode===m)return;S.mode=m;S.einzel=null;D.connected=false;
+  overlay({title:m==='TMO'?'Netzbetrieb':'Direktbetrieb',body:m==='TMO'?'Anmeldung …\n'+group():group()},1600);addLog('sys','Betriebsart '+m+', '+group());}
+function select(){
+  if(S.overlay){S.overlay=null;render();return;}
+  if(S.screen==='home'){openMenu('main');return;}
+  if(S.screen==='confirm'){const n=S.pend;home();sendStatus(n);return;}
+  if(S.screen!=='menu')return;
+  const v=menuItems()[S.sel];
+  switch(S.menu){
+    case'main':({'Gruppen':()=>openMenu('groups'),'Betriebsart':()=>openMenu('mode'),'Status':()=>openMenu('status'),'Nachrichten':()=>openMenu('sds'),'Einzelruf':()=>openMenu('contacts'),
+      'Lautstärke':()=>{S.screen='vol';render();},'Tastensperre':()=>{home();lock();},'Geräteinfo':()=>{S.screen='info';render();}})[v]();break;
+    case'mode':home();setMode(S.sel===0?'TMO':'DMO');break;
+    case'groups':home();setGroup(S.sel,true);break;
+    case'status':S.pend=S.sel;S.screen='confirm';S.stack=[];render();break;
+    case'sds':if(S.sds.length){S.sdsView=S.sel;S.screen='sdsview';render();}break;
+    case'contacts':S.einzel=CONTACTS[S.sel];D.connected=false;home();addLog('sys','Einzelruf an '+S.einzel+'. Sprechtaste drücken.');render();break;
+  }
+}
+function lock(){S.locked=!S.locked;overlay({title:S.locked?'Tasten gesperrt':'Tasten entsperrt',body:S.locked?'* lang zum Entsperren':''},1400);}
+function vol(d){S.vol=Math.max(0,Math.min(8,S.vol+d));save();if(!S.on){render();return;}T.click();if(S.screen==='vol')render();else overlay({title:'Lautstärke',body:S.vol+' / 8'},900);}
+function power(){
+  if(S.on){recOff_();stopSpeak();noise(false);Object.assign(S,{on:false,tx:false,rx:false,emergency:false,overlay:null,einzel:null});home();addLog('sys','Gerät aus.');render();return;}
+  ac();S.on=true;home();recOn_();const seq=['Selbsttest','TETRA',S.mode==='TMO'?'Anmeldung im Netz …':'Direktbetrieb'];let i=0;S.booting=seq[0];render();
+  const iv=setInterval(()=>{i++;if(i<seq.length){S.booting=seq[i];render();}else{clearInterval(iv);S.booting=false;T.on();render();addLog('sys',`Gerät ein, ${S.mode} ${group()}.`);}},850);
+}
+
+/* ================= Tasten ================= */
+const FREE=new Set(['ptt','emerg','star','red']);
+const H={
+  ptt:{down:pttDown,up:pttUp},
+  emerg:{long:toggleEmergency,ms:1500},
+  red:{press:back,long:power,ms:1100},
+  green:{press:()=>{if(S.screen==='confirm')return select();S.overlay=null;home();openMenu('contacts');}},
+  ok:{press:select},
+  softL:{press:()=>{if(S.overlay)return select();if(S.screen==='home')openMenu('status');else if(S.screen==='menu'||S.screen==='confirm')select();}},
+  softM:{press:()=>{if(S.overlay){S.overlay=null;render();return;}if(S.screen==='home')openMenu('main');}},
+  softR:{press:()=>{if(S.overlay){S.overlay=null;render();return;}if(S.screen==='home')openMenu('contacts');else back();}},
+  up:{press:()=>{if(S.screen==='menu'){S.sel=Math.max(0,S.sel-1);render();}else if(S.screen==='home')setGroup(S.gIdx-1,true);}},
+  down:{press:()=>{if(S.screen==='menu'){S.sel=Math.min(menuItems().length-1,S.sel+1);render();}else if(S.screen==='home')setGroup(S.gIdx+1,true);}},
+  left:{press:()=>{if(S.screen==='menu')back();else vol(-1);}},
+  right:{press:()=>{if(S.screen==='menu')select();else vol(1);}},
+  star:{long:lock,ms:1100},
+  hash:{press:()=>{S.light=!S.light;render();},long:()=>{S.mute=!S.mute;overlay({title:S.mute?'Stumm':'Ton an',body:''},1000);},ms:1100},
+  side1:{press:()=>setMode(S.mode==='TMO'?'DMO':'TMO')},
+  side2:{press:()=>{S.overlay=null;S.screen='info';render();}}
+};
+for(let d=0;d<=9;d++)H['d'+d]={press:()=>{S.overlay=null;
+  if(S.screen==='menu'){S.sel=Math.min(menuItems().length-1,d===0?9:d-1);render();return;}
+  S.pend=d;S.screen='confirm';render();}};
+function kDown(id){const h=H[id],el=document.getElementById(id);if(!h||h._down)return;h._down=true;h._fired=false;el&&el.classList.add('pressed');
+  if(!S.on&&id!=='red'){h._blocked=true;return;}
+  if(S.booting&&id!=='red'){h._blocked=true;return;}
+  if(S.locked&&!FREE.has(id)){overlay({title:'Tastensperre',body:'* lang zum Entsperren'},1200);h._blocked=true;return;}
+  h._blocked=false;if(id!=='ptt'&&S.on)T.click();h.down&&h.down();
+  if(h.long)h._t=setTimeout(()=>{h._fired=true;h.long();},h.ms);}
+function kUp(id){const h=H[id],el=document.getElementById(id);if(!h||!h._down)return;h._down=false;el&&el.classList.remove('pressed');clearTimeout(h._t);
+  if(h._blocked){h._blocked=false;return;}
+  h.up&&h.up();
+  if(!h._fired&&h.press){if(!S.on){$('#devHint').textContent='Die rote Taste etwas länger gedrückt halten.';return;}h.press();}}
+function bind(id){const el=document.getElementById(id);
+  el.addEventListener('pointerdown',e=>{e.preventDefault();try{el.setPointerCapture(e.pointerId)}catch(_){}kDown(id);});
+  ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>el.addEventListener(ev,()=>kUp(id)));
+  el.addEventListener('contextmenu',e=>e.preventDefault());}
+const PAD=[['1','.,?'],['2','ABC'],['3','DEF'],['4','GHI'],['5','JKL'],['6','MNO'],['7','PQRS'],['8','TUV'],['9','WXYZ'],['*','⚿'],['0','␣'],['#','☼']];
+$('#pad').innerHTML=PAD.map(([d,l])=>{const id=d==='*'?'star':d==='#'?'hash':'d'+d;return`<button class="k" id="${id}" aria-label="Taste ${d}"><b>${d}</b><small>${l}</small></button>`;}).join('');
+Object.keys(H).forEach(bind);
+function knob(id,fn){const el=document.getElementById(id);
+  el.addEventListener('click',e=>{const r=el.getBoundingClientRect();fn(e.clientX<r.left+r.width/2?-1:1);});
+  el.addEventListener('wheel',e=>{e.preventDefault();fn(e.deltaY>0?-1:1);},{passive:false});}
+knob('knobG',d=>{if(!S.on){S.gIdx=(S.gIdx+d+12)%12;render();return;}setGroup(S.gIdx+d,true);});
+knob('knobV',d=>vol(d));
+const KM={' ':'ptt','Escape':'red','Enter':'ok','ArrowUp':'up','ArrowDown':'down','ArrowLeft':'left','ArrowRight':'right','q':'softL','w':'softM','e':'softR','g':'green','*':'star','#':'hash','n':'emerg','m':'side1','i':'side2'};
+for(let d=0;d<=9;d++)KM[String(d)]='d'+d;
+const typing=e=>{const t=e.target;return t&&['INPUT','SELECT','TEXTAREA'].includes(t.tagName);};
+document.addEventListener('keydown',e=>{if(typing(e))return;const k=e.key.length===1?e.key.toLowerCase():e.key;
+  if(k===','||k==='.'){e.preventDefault();if(S.on)setGroup(S.gIdx+(k===','?-1:1),true);return;}
+  if(k==='-'||k==='+'){e.preventDefault();vol(k==='-'?-1:1);return;}
+  const id=KM[k];if(!id)return;e.preventDefault();if(e.repeat)return;kDown(id);});
+document.addEventListener('keyup',e=>{if(typing(e))return;const k=e.key.length===1?e.key.toLowerCase():e.key;const id=KM[k];if(!id)return;e.preventDefault();kUp(id);});
+window.addEventListener('blur',()=>Object.keys(H).forEach(id=>{if(H[id]._down)kUp(id);}));
+
+/* ================= Panel ================= */
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===t?'true':'false'));
+  document.querySelectorAll('.tb').forEach(b=>b.classList.toggle('show',b.id==='tab-'+t.dataset.tab));}));
+$('#tblS').innerHTML='<tr><th>Status</th><th>Bedeutung</th></tr>'+Object.entries(STATUS).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+$('#tblL').innerHTML='<tr><th>Status</th><th>Bedeutung</th></tr>'+Object.entries(LS).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+function fillScen(){$('#scenSel').innerHTML='<option value="rand">Zufälliger Einsatz</option>'+SCEN[S.org].map((s,i)=>`<option value="${i}">${esc(s.st)}</option>`).join('');}
+$('#btnAlarm').addEventListener('click',startScenario);
+$('#btnEnd').addEventListener('click',()=>{addLog('sys','Übung beendet.');endScenario(false);});
+$('#typeSend').addEventListener('click',typedSend);
+$('#typeIn').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();typedSend();}});
+$('#setOrg').value=S.org;$('#setCall').value=S.call;$('#setLs').value=S.ls;$('#setRate').value=S.rate;$('#setClick').checked=S.click;
+$('#setOrg').addEventListener('change',e=>{const o=S.org;S.org=e.target.value;if(S.call===DEF_CALL[o]){S.call=DEF_CALL[S.org];$('#setCall').value=S.call;}fillScen();save();});
+$('#setCall').addEventListener('change',e=>{S.call=e.target.value.trim()||DEF_CALL[S.org];save();render();});
+$('#setLs').addEventListener('change',e=>{S.ls=e.target.value.trim()||'Leitstelle Musterstadt';save();});
+$('#setRate').addEventListener('input',e=>{S.rate=+e.target.value;save();});
+$('#setClick').addEventListener('change',e=>{S.click=e.target.checked;save();});
+function fillVoices(){const vs=deVoices(),sel=$('#setVoice');
+  sel.innerHTML=vs.length?vs.map(v=>`<option ${v.name===(pickVoice()||{}).name?'selected':''}>${esc(v.name)}</option>`).join(''):'<option>Keine deutsche Stimme gefunden</option>';
+  const nat=vs.some(v=>/natural/i.test(v.name));
+  $('#voiceInfo').textContent=!vs.length?'Keine deutsche Stimme installiert. In Windows unter Einstellungen > Zeit und Sprache > Sprache eine deutsche Sprachausgabe hinzufügen, oder Edge verwenden.':
+    nat?'Natürliche Neuronal-Stimme gefunden. Klingt am echtesten.':'Nur Standardstimmen gefunden. Für eine natürliche Stimme die Datei in Microsoft Edge öffnen.';}
+$('#setVoice').addEventListener('change',e=>{S.voice=e.target.value;save();});
+$('#voiceTest').addEventListener('click',()=>{ac();speak(`${S.call} von ${S.ls}, kommen.`);});
+if('speechSynthesis'in window){fillVoices();speechSynthesis.onvoiceschanged=fillVoices;}
+if(navigator.brave){line('Brave unterstützt keine Spracherkennung. Öffne den Trainer in Microsoft Edge oder Google Chrome.');}
+else if(!SR)line('Dieser Browser kann keine Spracheingabe. Öffne die Datei in Edge oder Chrome, oder tippe deine Sprüche.');
+micState();
+fillScen();renderLog();render();
+})();
+</script>
+</body>
+</html>
